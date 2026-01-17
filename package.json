@@ -1,0 +1,38 @@
+{
+  "name": "sentry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Developer Collaboration OS - Decision Intelligence Platform",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev -w @sentry/backend",
+    "dev:frontend": "npm run dev -w @sentry/frontend",
+    "dev:cli": "npm run dev -w @sentry/cli",
+    "build": "npm run build -w @sentry/shared && npm run build -w @sentry/backend && npm run build -w @sentry/frontend && npm run build -w @sentry/cli",
+    "test": "npm run test --workspaces --if-present",
+    "test:unit": "npm run test:unit --workspaces --if-present",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "db:migrate": "node database/migrate.js",
+    "db:seed": "node database/seed.js",
+    "db:reset": "node database/reset.js",
+    "lint": "eslint packages --ext .ts,.tsx",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,json}\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "esbuild": "^0.21.5"
+  }
+}

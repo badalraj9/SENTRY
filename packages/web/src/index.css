@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SENTRY TERMINAL - Base Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    @apply border-terminal-700;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-terminal-950 text-terminal-300 font-sans text-sm;
+  }
+
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-terminal-700 rounded-sm;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-terminal-600;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-accent/30 text-terminal-50;
+  }
+
+  /* Focus Outline */
+  :focus-visible {
+    @apply outline-none ring-1 ring-accent ring-offset-0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Component Layer
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-terminal-950 hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply btn bg-terminal-800 text-terminal-200 hover:bg-terminal-700 border border-terminal-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-terminal-400 hover:text-terminal-200 hover:bg-terminal-800;
+  }
+
+  .btn-danger {
+    @apply btn bg-error text-white hover:bg-red-600;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-3 py-2 text-sm font-mono bg-terminal-950 border border-terminal-700 rounded text-terminal-200 placeholder:text-terminal-500 focus:border-accent focus:ring-1 focus:ring-accent transition-colors duration-150;
+  }
+
+  .input-sm {
+    @apply input py-1.5 text-sm;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-terminal-900 border border-terminal-700 rounded-md;
+  }
+
+  .card-elevated {
+    @apply bg-terminal-850 border border-terminal-700 rounded-md;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 text-2xs font-mono font-medium rounded;
+  }
+
+  .badge-success {
+    @apply badge bg-success-muted text-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-muted text-warning;
+  }
+
+  .badge-error {
+    @apply badge bg-error-muted text-error;
+  }
+
+  .badge-info {
+    @apply badge bg-info-muted text-info;
+  }
+
+  .badge-neutral {
+    @apply badge bg-terminal-800 text-terminal-400;
+  }
+
+  /* Status Indicators */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot.online {
+    @apply bg-success;
+  }
+
+  .status-dot.offline {
+    @apply bg-terminal-600;
+  }
+
+  .status-dot.busy {
+    @apply bg-warning;
+  }
+
+  /* Skeleton Loader */
+  .skeleton {
+    @apply bg-terminal-800 rounded animate-pulse;
+  }
+
+  /* Monospace Text */
+  .mono {
+    @apply font-mono;
+  }
+
+  /* Keyboard Shortcuts */
+  .kbd {
+    @apply inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-2xs font-mono font-medium bg-terminal-800 text-terminal-400 border border-terminal-600 rounded;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-terminal-700;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utility Layer
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Terminal cursor blink */
+  .cursor-blink::after {
+    content: '▋';
+    @apply text-accent animate-blink ml-0.5;
+  }
+
+  /* Truncate with ellipsis */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-terminal-900/80 backdrop-blur-md;
+  }
+}

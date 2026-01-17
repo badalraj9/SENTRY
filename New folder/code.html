@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SENTRY Workshop Session</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7C9EFF", /* Adjusted to match SENTRY Blue request */
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#0F0F10", /* Deep charcoal as requested */
+                        "border-subtle": "#2A2A2E",
+                        "text-main": "#EDEDED",
+                        "text-muted": "#B8B8B8",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .blinking-cursor {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        /* Custom scrollbar to match dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0F0F10; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A2A2E; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46; 
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-text-main h-screen flex flex-col overflow-hidden selection:bg-primary/30 selection:text-white">
+<!-- Global Context Bar (Header) -->
+<header class="flex-none h-12 border-b border-border-subtle flex items-center justify-between px-6 text-sm">
+<nav class="flex items-center gap-2 overflow-hidden whitespace-nowrap mask-linear-fade">
+<a class="text-text-muted hover:text-primary transition-colors duration-200" href="#">SENTRY</a>
+<span class="text-border-subtle">▸</span>
+<a class="text-text-muted hover:text-primary transition-colors duration-200" href="#">architecture-sprint</a>
+<span class="text-border-subtle">▸</span>
+<span class="text-primary font-medium">caching-strategy</span>
+</nav>
+<div class="hidden md:flex items-center gap-3 text-xs text-text-muted font-mono">
+<span class="opacity-50">session:</span>
+<span class="text-primary opacity-80">#8a29f</span>
+<div class="w-2 h-2 rounded-full bg-green-500/50 animate-pulse ml-2" title="Live"></div>
+</div>
+</header>
+<!-- The Log (Main Viewport) -->
+<main class="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-1 md:gap-2 scroll-smooth" id="terminal-log">
+<!-- Welcome Message -->
+<div class="opacity-30 pb-4 pt-2 text-xs border-b border-border-subtle mb-4">
+            SENTRY v2.4.0-rc [connected]<br/>
+            Last login: Tue Oct 24 10:12:33 on ttys001
+        </div>
+<!-- User Message: Alice -->
+<div class="group flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4 py-1 hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors">
+<div class="flex items-baseline gap-3 md:w-32 shrink-0">
+<span class="text-primary font-bold text-sm">alice</span>
+<span class="text-text-muted text-xs opacity-50">10:42 AM</span>
+</div>
+<div class="text-text-main leading-relaxed">
+<span class="text-text-muted select-none opacity-30 mr-2">&gt;</span>We need to switch to Redis for the session store.
+            </div>
+</div>
+<!-- User Message: Bob -->
+<div class="group flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4 py-1 hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors">
+<div class="flex items-baseline gap-3 md:w-32 shrink-0">
+<span class="text-[#e2b340] font-bold text-sm">bob</span>
+<span class="text-text-muted text-xs opacity-50">10:43 AM</span>
+</div>
+<div class="text-text-main leading-relaxed">
+<span class="text-text-muted select-none opacity-30 mr-2">&gt;</span>Agreed. The SQL latency is killing us.
+            </div>
+</div>
+<!-- System Message: SENTRY -->
+<div class="group flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4 py-2 my-2 bg-primary/[0.03] border-l-2 border-primary/20 -mx-4 px-4">
+<div class="flex items-baseline gap-3 md:w-32 shrink-0">
+<span class="text-primary font-bold text-sm">[SENTRY]</span>
+<span class="text-text-muted text-xs opacity-50">10:43 AM</span>
+</div>
+<div class="flex flex-col gap-2 w-full max-w-3xl">
+<div class="text-text-main font-medium">
+                    Decision detected: Migrate session store to Redis.
+                </div>
+<!-- Decision Artifact -->
+<div class="pl-4 md:pl-6 border-l border-border-subtle flex flex-col gap-2 text-sm">
+<div class="flex items-start gap-2 text-text-muted">
+<span class="material-symbols-outlined text-[16px] leading-tight text-primary mt-0.5">analytics</span>
+<span>Impact analysis: <span class="text-text-main">Low complexity, High impact.</span></span>
+</div>
+<div class="mt-1 flex items-center gap-2 text-primary">
+<span class="select-none opacity-50">&gt;</span>
+<div class="flex gap-1">
+<span class="select-none text-text-muted">[</span>
+<button class="hover:text-white hover:underline decoration-primary underline-offset-4 px-1 focus:outline-none focus:ring-1 focus:ring-primary rounded-sm transition-all">confirm</button>
+<span class="select-none text-text-muted">·</span>
+<button class="hover:text-white hover:underline decoration-primary underline-offset-4 px-1 focus:outline-none focus:ring-1 focus:ring-primary rounded-sm transition-all text-text-muted">ignore</button>
+<span class="select-none text-text-muted">·</span>
+<button class="hover:text-white hover:underline decoration-primary underline-offset-4 px-1 focus:outline-none focus:ring-1 focus:ring-primary rounded-sm transition-all text-text-muted">edit</button>
+<span class="select-none text-text-muted">]</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message: Alice -->
+<div class="group flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4 py-1 hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors">
+<div class="flex items-baseline gap-3 md:w-32 shrink-0">
+<span class="text-primary font-bold text-sm">alice</span>
+<span class="text-text-muted text-xs opacity-50">10:44 AM</span>
+</div>
+<div class="text-text-main leading-relaxed">
+<span class="text-text-muted select-none opacity-30 mr-2">&gt;</span>Let's confirm that.
+            </div>
+</div>
+<!-- System Message: SENTRY (Confirmation) -->
+<div class="group flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4 py-1 hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors">
+<div class="flex items-baseline gap-3 md:w-32 shrink-0">
+<span class="text-primary font-bold text-sm">[SENTRY]</span>
+<span class="text-text-muted text-xs opacity-50">10:44 AM</span>
+</div>
+<div class="text-text-muted italic leading-relaxed flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                Confirmed. Added to decision log.
+            </div>
+</div>
+<!-- Scroll anchor -->
+<div class="h-4"></div>
+</main>
+<!-- Footer Area -->
+<footer class="flex-none bg-background-dark z-10">
+<!-- Status/Metadata Line -->
+<div class="flex items-center justify-between px-6 py-1 text-[10px] text-text-muted border-t border-border-subtle select-none">
+<div class="flex gap-4">
+<span>connected :: 4ms latency</span>
+<span class="hidden sm:inline">mem_usage: 124mb</span>
+</div>
+<div class="flex gap-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+<span>CTRL+K clear</span>
+<span>ESC cancel</span>
+</div>
+</div>
+<!-- Command Line Input -->
+<div class="flex items-center gap-3 px-6 py-3 border-t border-border-subtle bg-[#141416] focus-within:bg-[#1a1a1d] transition-colors">
+<span class="text-primary font-bold text-lg leading-none select-none">&gt;</span>
+<div class="relative flex-1">
+<input aria-label="Terminal Input" autofocus="" class="w-full bg-transparent border-none p-0 text-text-main placeholder-text-muted/20 focus:ring-0 text-base font-mono caret-transparent" placeholder="Type a message or /command..." type="text"/>
+<!-- Custom Blinking Cursor overlay positioned at the start (visual only simulation for empty state) -->
+<div class="absolute inset-y-0 left-0 flex items-center pointer-events-none">
+<span class="w-2.5 h-5 bg-primary blinking-cursor block"></span>
+</div>
+</div>
+<button aria-label="Send" class="text-text-muted hover:text-white transition-colors p-1 rounded-sm focus:outline-none focus:ring-1 focus:ring-primary/50">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</div>
+</footer>
+</body></html>
