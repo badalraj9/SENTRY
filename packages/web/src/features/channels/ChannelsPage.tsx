@@ -1,5 +1,3 @@
-'use client';
-
 import { Outlet, useParams } from 'react-router-dom';
 import { ChannelSidebar } from '../../widgets/sidebar';
 import { ActivityFeed } from '../feed';

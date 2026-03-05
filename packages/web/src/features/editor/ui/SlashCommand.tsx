@@ -1,5 +1,3 @@
-'use client';
-
 import { Editor } from '@tiptap/react';
 import type { Range } from '@tiptap/react';
 import {

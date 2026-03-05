@@ -1,273 +1,252 @@
-'use client';
-
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
-import { Virtuoso } from 'react-virtuoso';
-import TextareaAutosize from 'react-textarea-autosize';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useGetChatsQuery, useGetMessagesQuery, useSendMessageMutation } from '../../../shared/api/apiSlice';
 import { useChatSocket } from '../model/useChatSocket';
 import { useAppSelector } from '../../../store/hooks';
-import { cn } from '../../../shared/lib/utils';
-import { Badge, Skeleton } from '../../../shared/ui';
-import { Send, Hash, Loader2, MessageSquare, Users, AlertCircle, RefreshCw } from 'lucide-react';
+import { Terminal, Shield, Loader2 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ChatWindow Component
-   Virtualized chat with real-time updates and optimistic sending
+   COMMS HUB - TERMINAL CHAT
+   Full CLI-style chat experience matching Login/Register aesthetic
    ═══════════════════════════════════════════════════════════════════════════ */
+
+interface LogEntry {
+  id: string;
+  text: string;
+  type: 'info' | 'success' | 'error' | 'warning' | 'header' | 'divider' | 'message' | 'self';
+}
 
 export function ChatWindow() {
   const { chatId } = useParams<{ chatId: string }>();
   const { user } = useAppSelector((state) => state.auth);
-  const [inputText, setInputText] = React.useState('');
-  const virtuosoRef = React.useRef<any>(null);
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const hasBooted = useRef(false);
 
-  // RTK Query hooks
-  const { data: chats = [], isLoading: chatsLoading } = useGetChatsQuery();
-  const { data: messages = [], isLoading: messagesLoading, error: messagesError, refetch } = useGetMessagesQuery(chatId!, { skip: !chatId });
-  const [sendMessage, { isLoading: sending }] = useSendMessageMutation();
+  const [message, setMessage] = useState('');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isConnecting, setIsConnecting] = useState(true);
 
+  // Fetch real data from API
+  const { data: chats = [] } = useGetChatsQuery(undefined);
+  const { data: messages = [] } = useGetMessagesQuery(chatId!, { skip: !chatId });
+  const [sendMessageMutation, { isLoading: sending }] = useSendMessageMutation();
+  
   // Connect to WebSocket for real-time updates
   useChatSocket(chatId);
-
-  // Get current chat info
+  
   const currentChat = chats.find(c => c.id === chatId);
 
-  // Handle send message
-  const handleSend = async () => {
-    if (!inputText.trim() || !chatId) return;
+  // Initialize terminal - runs only once
+  useEffect(() => {
+    if (hasBooted.current) return;
+    hasBooted.current = true;
 
-    const tempId = crypto.randomUUID();
-    const content = inputText;
-    setInputText(''); // Clear immediately for instant feel
+    const bootSequence: LogEntry[] = [
+      { id: '1', text: 'SENTRY_OS v4.0.2 [COMMUNICATIONS HUB]', type: 'header' },
+      { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+      { id: '3', text: 'INIT: ESTABLISHING COMM LINK...', type: 'info' },
+      { id: '4', text: '✓ ENCRYPTED CHANNEL ACTIVE', type: 'success' },
+      { id: '5', text: '', type: 'info' },
+      { id: '6', text: '── AVAILABLE FREQUENCIES ──────────────────────────────', type: 'divider' },
+      { id: '7', text: '  [1] #general (0 members)', type: 'info' },
+      { id: '8', text: '  [2] #engineering (0 members)', type: 'info' },
+      { id: '9', text: '  [3] #design (0 members)', type: 'info' },
+      { id: '10', text: '', type: 'info' },
+      { id: '11', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+      { id: '12', text: 'COMMANDS: /join <n> | /back | /help', type: 'info' },
+      { id: '13', text: chatId ? `CONNECTED TO: #${currentChat?.name || 'channel'}` : 'SELECT A CHANNEL TO BEGIN', type: chatId ? 'success' : 'warning' },
+      { id: '14', text: '', type: 'info' },
+    ];
 
-    try {
-      await sendMessage({ chatId, content, tempId }).unwrap();
-    } catch (err) {
-      console.error('Failed to send message:', err);
-      // Optimistic update will roll back automatically
+    // Staggered animation using recursive setTimeout
+    let currentIndex = 0;
+    
+    const addNextLog = () => {
+      if (currentIndex < bootSequence.length) {
+        setLogs(prev => [...prev, bootSequence[currentIndex]]);
+        currentIndex++;
+        setTimeout(addNextLog, 40);
+      } else {
+        setIsConnecting(false);
+        inputRef.current?.focus();
+      }
+    };
+    
+    addNextLog();
+  }, []); // Empty deps - run once
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  // Handle input
+  const handleInput = async (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter' || !message.trim()) return;
+
+    const input = message.trim();
+    setMessage('');
+
+    // Command handling
+    if (input.startsWith('/')) {
+      const [cmd, ...args] = input.slice(1).split(' ');
+
+      if (cmd === 'back' || cmd === 'home') {
+        addLogs([{ text: '→ RETURNING TO COMMAND CENTER...', type: 'success' }]);
+        setTimeout(() => navigate('/'), 500);
+      } else if (cmd === 'join' && args[0]) {
+        const channelNum = parseInt(args[0]) - 1;
+        if (chats[channelNum]) {
+          addLogs([{ text: `→ CONNECTING TO #${chats[channelNum].name}...`, type: 'success' }]);
+          setTimeout(() => navigate(`/chat/${chats[channelNum].id}`), 500);
+        } else {
+          addLogs([{ text: 'ERR: INVALID CHANNEL NUMBER', type: 'error' }]);
+        }
+      } else if (cmd === 'help') {
+        addLogs([
+          { text: '', type: 'info' },
+          { text: '── COMM COMMANDS ──────────────────────────────────────', type: 'divider' },
+          { text: '  /join <n>  → Join channel by number', type: 'info' },
+          { text: '  /back      → Return to command center', type: 'info' },
+          { text: '  /clear     → Clear terminal', type: 'info' },
+          { text: '  (text)     → Send message to channel', type: 'info' },
+          { text: '', type: 'info' },
+        ]);
+      } else if (cmd === 'clear') {
+        setLogs([
+          { id: '1', text: 'SENTRY_OS v4.0.2 [COMMUNICATIONS HUB]', type: 'header' },
+          { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+          { id: '3', text: 'TERMINAL CLEARED.', type: 'success' },
+          { id: '4', text: '', type: 'info' },
+        ]);
+      } else {
+        addLogs([{ text: `ERR: UNKNOWN COMMAND "/${cmd}"`, type: 'error' }]);
+      }
+    } else if (chatId) {
+      // Send message (mock for demo)
+      addLogs([{ text: `  YOU: ${input}`, type: 'self' }]);
+      addLogs([{ text: '  ✓ MESSAGE SENT', type: 'success' }]);
+    } else {
+      addLogs([{ text: 'ERR: NO CHANNEL SELECTED. USE /join <n>', type: 'error' }]);
     }
   };
 
-  // Handle Enter key
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const addLogs = (entries: Omit<LogEntry, 'id'>[]) => {
+    const newLogs = entries.map((e, i) => ({
+      ...e,
+      id: `${Date.now()}-${i}`,
+    }));
+    setLogs(prev => [...prev, ...newLogs]);
+  };
+
+  const getLogColor = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'success': return 'text-success';
+      case 'error': return 'text-error';
+      case 'warning': return 'text-warning';
+      case 'header': return 'text-success font-bold';
+      case 'divider': return 'text-terminal-600';
+      case 'message': return 'text-info';
+      case 'self': return 'text-accent';
+      default: return 'text-terminal-400';
     }
   };
 
   return (
-    <div className="h-full flex">
-      {/* Chat List Sidebar */}
-      <aside className="w-64 flex-none border-r border-terminal-700 flex flex-col bg-terminal-900">
-        <div className="h-12 flex items-center px-4 border-b border-terminal-700">
-          <span className="text-xs font-mono text-terminal-400 uppercase tracking-wider">Channels</span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2">
-          {chatsLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10" />
-              <Skeleton className="h-10" />
-              <Skeleton className="h-10" />
-            </div>
-          ) : chats.length === 0 ? (
-            <div className="p-4 text-center text-terminal-500 text-xs">
-              No chats yet
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {chats.map((chat) => (
-                <ChatListItem
-                  key={chat.id}
-                  chat={chat}
-                  active={chat.id === chatId}
-                />
-              ))}
-            </div>
+    <div
+      className="h-full w-full bg-terminal-950 text-success font-mono text-sm overflow-hidden flex flex-col"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-terminal-500">
+          <Terminal className="w-4 h-4" />
+          <span className="text-xs uppercase tracking-wider">Communications Hub</span>
+          {currentChat && (
+            <>
+              <span className="text-terminal-700">•</span>
+              <span className="text-success text-xs">#{currentChat.name}</span>
+            </>
           )}
         </div>
-      </aside>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-terminal-600 text-xs">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span>{chats.length} CHANNELS</span>
+          </div>
+          <div className="flex items-center gap-2 text-terminal-600 text-xs">
+            <Shield className="w-3 h-3" />
+            <span>E2E ENCRYPTED</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col bg-terminal-950">
-        {chatId ? (
-          <>
-            {/* Chat Header */}
-            <header className="h-12 flex-none border-b border-terminal-700 px-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Hash className="w-4 h-4 text-success" />
-                <span className="font-mono text-sm text-terminal-200">
-                  {currentChat?.name || chatId}
-                </span>
-                <Badge variant="default">{currentChat?.type || 'chat'}</Badge>
-              </div>
-              <div className="flex items-center gap-2 text-terminal-500">
-                <Users className="w-4 h-4" />
-              </div>
-            </header>
+      {/* Terminal Content */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          {/* Logs */}
+          <div className="space-y-0.5">
+            {logs.filter(Boolean).map((log) => (
+              <motion.div
+                key={log.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.05 }}
+                className={getLogColor(log.type)}
+              >
+                {log.text || '\u00A0'}
+              </motion.div>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
 
-            {/* Messages Area (Virtualized) */}
-            <div className="flex-1 overflow-hidden">
-              {messagesLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-5 h-5 animate-spin text-terminal-500" />
-                </div>
-              ) : messagesError ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3">
-                  <AlertCircle className="w-8 h-8 text-error" />
-                  <p className="text-sm text-terminal-400">Failed to load messages</p>
-                  <button
-                    onClick={() => refetch()}
-                    className="flex items-center gap-2 text-xs text-accent hover:text-accent-hover"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    Retry
-                  </button>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <MessageSquare className="w-12 h-12 text-terminal-700 mb-3" />
-                  <p className="text-sm text-terminal-500">No messages yet</p>
-                  <p className="text-xs text-terminal-600 mt-1">Start the conversation!</p>
-                </div>
-              ) : (
-                <Virtuoso
-                  ref={virtuosoRef}
-                  data={messages}
-                  initialTopMostItemIndex={messages.length - 1}
-                  followOutput="auto"
-                  className="h-full"
-                  itemContent={(_index, message) => (
-                    <MessageBubble
-                      key={message.id}
-                      message={message}
-                      isMe={message.userId === user?.id}
-                    />
-                  )}
-                />
-              )}
-            </div>
-
-            {/* Message Input */}
-            <div className="p-3 border-t border-terminal-700">
-              <div className={cn(
-                'flex items-end gap-2 px-3 py-2',
-                'bg-terminal-900 border border-terminal-700 rounded-md',
-                'focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20',
-                'transition-colors duration-150'
-              )}>
-                <TextareaAutosize
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  minRows={1}
-                  maxRows={5}
-                  className={cn(
-                    'flex-1 bg-transparent resize-none',
-                    'text-sm font-mono text-terminal-200 placeholder:text-terminal-500',
-                    'focus:outline-none'
-                  )}
+          {/* Message Input */}
+          {!isConnecting && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-terminal-500">msg&gt;</span>
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleInput}
+                  className="bg-transparent border-none outline-none w-full text-terminal-100"
+                  placeholder=""
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
                   disabled={sending}
                 />
-                <button
-                  onClick={handleSend}
-                  disabled={!inputText.trim() || sending}
-                  className={cn(
-                    'p-1.5 rounded transition-colors',
-                    inputText.trim()
-                      ? 'text-accent hover:bg-accent/10'
-                      : 'text-terminal-600 cursor-not-allowed'
-                  )}
-                >
-                  {sending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
+                {/* Blinking Cursor */}
+                <motion.div
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.7 }}
+                  className="absolute top-0 h-5 w-2 bg-success pointer-events-none"
+                  style={{ left: `${message.length * 9.6}px` }}
+                />
               </div>
+              {sending && <Loader2 className="w-4 h-4 animate-spin text-success" />}
             </div>
-          </>
-        ) : (
-          /* No Chat Selected */
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <MessageSquare className="w-16 h-16 text-terminal-700 mb-4" />
-            <p className="text-terminal-400 font-mono">Select a conversation</p>
-            <p className="text-terminal-600 text-sm mt-1">Or start a new chat</p>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Sub-components
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-interface ChatListItemProps {
-  chat: { id: string; name?: string; type: string };
-  active: boolean;
-}
-
-function ChatListItem({ chat, active }: ChatListItemProps) {
-  return (
-    <a
-      href={`/messages/${chat.id}`}
-      className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded text-sm font-mono',
-        'transition-colors duration-150',
-        active
-          ? 'bg-accent-muted text-accent border border-accent/20'
-          : 'text-terminal-400 hover:text-terminal-200 hover:bg-terminal-800 border border-transparent'
-      )}
-    >
-      <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-      <span className="truncate">{chat.name || chat.id.slice(0, 8)}</span>
-    </a>
-  );
-}
-
-interface MessageBubbleProps {
-  message: {
-    id: string;
-    content: string;
-    userId: string;
-    createdAt: string;
-    status?: 'sending' | 'sent' | 'error';
-  };
-  isMe: boolean;
-}
-
-function MessageBubble({ message, isMe }: MessageBubbleProps) {
-  const time = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  return (
-    <div className={cn('px-4 py-1.5', isMe && 'flex justify-end')}>
-      <div className={cn(
-        'max-w-[70%] px-3 py-2 rounded-md',
-        isMe
-          ? 'bg-accent/10 border border-accent/20'
-          : 'bg-terminal-900 border border-terminal-700'
-      )}>
-        <p className="text-sm text-terminal-200 whitespace-pre-wrap break-words">
-          {message.content}
-        </p>
-        <div className="flex items-center justify-end gap-2 mt-1">
-          <span className="text-[10px] text-terminal-500">{time}</span>
-          {message.status === 'sending' && (
-            <Loader2 className="w-2.5 h-2.5 animate-spin text-terminal-500" />
           )}
-          {message.status === 'error' && (
-            <AlertCircle className="w-2.5 h-2.5 text-error" />
+
+          {/* Connecting indicator */}
+          {isConnecting && (
+            <div className="mt-4 flex items-center gap-2 text-success animate-pulse">
+              <Loader2 className="animate-spin w-4 h-4" />
+              <span>ESTABLISHING LINK...</span>
+            </div>
           )}
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
+        SENTRY COLLABORATIVE OS • /help FOR COMMANDS
       </div>
     </div>
   );

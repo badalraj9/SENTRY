@@ -1,5 +1,3 @@
-'use client';
-
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
 import { Zap } from 'lucide-react';

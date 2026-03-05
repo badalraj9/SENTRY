@@ -1,23 +1,14 @@
-'use client';
-
-import * as React from 'react';
-import { NavLink, useParams } from 'react-router-dom';
-import {
-  Hash,
-  Volume2,
-  Lock,
-  ChevronDown,
-  Plus,
-  Settings,
-} from 'lucide-react';
-import { cn } from '../../shared/lib/utils';
+import * as React from "react";
+import { NavLink, useParams } from "react-router-dom";
+import { Hash, Volume2, Lock, ChevronDown, Plus, Settings } from "lucide-react";
+import { cn } from "../../shared/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Channel Sidebar
    Discord-style channel organization with categories
    ═══════════════════════════════════════════════════════════════════════════ */
 
-type ChannelType = 'PUBLIC' | 'PRIVATE' | 'BROADCAST';
+type ChannelType = "PUBLIC" | "PRIVATE" | "BROADCAST";
 
 interface Channel {
   id: string;
@@ -34,25 +25,30 @@ interface ChannelSection {
 // Mock data structure
 const CHANNEL_SECTIONS: ChannelSection[] = [
   {
-    title: 'Broadcasts',
+    title: "Broadcasts",
     channels: [
-      { id: 'announcements', name: 'announcements', type: 'BROADCAST', unreadCount: 1 },
-      { id: 'releases', name: 'releases', type: 'BROADCAST' },
+      {
+        id: "announcements",
+        name: "announcements",
+        type: "BROADCAST",
+        unreadCount: 1,
+      },
+      { id: "releases", name: "releases", type: "BROADCAST" },
     ],
   },
   {
-    title: 'Engineering',
+    title: "Engineering",
     channels: [
-      { id: 'frontend', name: 'frontend-dev', type: 'PUBLIC' },
-      { id: 'backend', name: 'backend-api', type: 'PUBLIC' },
-      { id: 'ops', name: 'devops', type: 'PRIVATE' },
+      { id: "frontend", name: "frontend-dev", type: "PUBLIC" },
+      { id: "backend", name: "backend-api", type: "PUBLIC" },
+      { id: "ops", name: "devops", type: "PRIVATE" },
     ],
   },
   {
-    title: 'Product',
+    title: "Product",
     channels: [
-      { id: 'design', name: 'design-system', type: 'PUBLIC' },
-      { id: 'general', name: 'general', type: 'PUBLIC' },
+      { id: "design", name: "design-system", type: "PUBLIC" },
+      { id: "general", name: "general", type: "PUBLIC" },
     ],
   },
 ];
@@ -68,9 +64,9 @@ interface ChannelItemProps {
 
 function ChannelItem({ channel, isActive }: ChannelItemProps) {
   const Icon =
-    channel.type === 'BROADCAST'
+    channel.type === "BROADCAST"
       ? Volume2
-      : channel.type === 'PRIVATE'
+      : channel.type === "PRIVATE"
         ? Lock
         : Hash;
 
@@ -78,16 +74,16 @@ function ChannelItem({ channel, isActive }: ChannelItemProps) {
     <NavLink
       to={`/channels/${channel.id}`}
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5',
+        "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5",
         isActive
-          ? 'bg-terminal-800 text-terminal-100'
-          : 'text-terminal-400 hover:bg-terminal-900 hover:text-terminal-300'
+          ? "bg-terminal-800 text-terminal-100"
+          : "text-terminal-400 hover:bg-terminal-900 hover:text-terminal-300",
       )}
     >
       <Icon
         size={14}
         className={cn(
-          channel.type === 'BROADCAST' ? 'text-warning' : 'opacity-70'
+          channel.type === "BROADCAST" ? "text-warning" : "opacity-70",
         )}
       />
       <span className="truncate flex-1">{channel.name}</span>
@@ -107,13 +103,15 @@ function ChannelItem({ channel, isActive }: ChannelItemProps) {
 interface ChannelSidebarProps {
   currentUser?: {
     handle: string;
-    status: 'online' | 'away' | 'offline';
+    status: "online" | "away" | "offline";
   };
 }
 
 export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
   const { channelId } = useParams<{ channelId: string }>();
-  const [collapsedSections, setCollapsedSections] = React.useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = React.useState<Set<string>>(
+    new Set(),
+  );
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) => {
@@ -127,15 +125,20 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
     });
   };
 
-  const user = currentUser || { handle: 'DevUser_26', status: 'online' as const };
+  const user = currentUser || {
+    handle: "DevUser_26",
+    status: "online" as const,
+  };
 
   return (
-    <div className="w-60 bg-terminal-950 border-r border-terminal-800 flex flex-col h-full">
+    <div className="hidden md:flex w-60 bg-terminal-950 border-r border-terminal-800 flex-col h-full shrink-0">
       {/* Header */}
-      <div className={cn(
-        'h-14 border-b border-terminal-800 flex items-center px-4',
-        'font-bold text-terminal-100 hover:bg-terminal-900 transition-colors cursor-pointer'
-      )}>
+      <div
+        className={cn(
+          "h-14 border-b border-terminal-800 flex items-center px-4",
+          "font-bold text-terminal-100 hover:bg-terminal-900 transition-colors cursor-pointer",
+        )}
+      >
         <span>Sentry HQ</span>
         <ChevronDown size={14} className="ml-auto text-terminal-500" />
       </div>
@@ -156,8 +159,8 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
                   <ChevronDown
                     size={10}
                     className={cn(
-                      'transition-transform',
-                      isCollapsed && '-rotate-90'
+                      "transition-transform",
+                      isCollapsed && "-rotate-90",
                     )}
                   />
                   {section.title}
@@ -185,10 +188,12 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
       </div>
 
       {/* User Bar */}
-      <div className={cn(
-        'h-14 bg-terminal-900/50 border-t border-terminal-800',
-        'flex items-center px-3 gap-3'
-      )}>
+      <div
+        className={cn(
+          "h-14 bg-terminal-900/50 border-t border-terminal-800",
+          "flex items-center px-3 gap-3",
+        )}
+      >
         <div className="w-8 h-8 rounded bg-success flex items-center justify-center font-bold text-xs text-terminal-950">
           {user.handle.slice(0, 2).toUpperCase()}
         </div>
@@ -197,12 +202,14 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
             {user.handle}
           </div>
           <div className="text-[10px] text-terminal-500 flex items-center gap-1">
-            <div className={cn(
-              'w-1.5 h-1.5 rounded-full',
-              user.status === 'online' && 'bg-success',
-              user.status === 'away' && 'bg-warning',
-              user.status === 'offline' && 'bg-terminal-600'
-            )} />
+            <div
+              className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                user.status === "online" && "bg-success",
+                user.status === "away" && "bg-warning",
+                user.status === "offline" && "bg-terminal-600",
+              )}
+            />
             <span className="capitalize">{user.status}</span>
           </div>
         </div>

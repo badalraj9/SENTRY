@@ -1,5 +1,3 @@
-'use client';
-
 import { cn } from '../../../shared/lib/utils';
 import { Avatar } from '../../../shared/ui';
 import { Crown, Eye, Mic } from 'lucide-react';

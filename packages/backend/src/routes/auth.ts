@@ -2,11 +2,14 @@
  * Auth Routes
  */
 
-import { Router } from 'express';
-import { z } from 'zod';
-import { validateBody } from '../middleware/validation.js';
-import { generateTokens } from '../middleware/auth.js';
-import * as userService from '../services/user.service.js';
+import { Router } from "express";
+import { z } from "zod";
+import jwt from "jsonwebtoken";
+import { validateBody } from "../middleware/validation.js";
+import { generateTokens } from "../middleware/auth.js";
+import { config } from "../config/index.js";
+import * as userService from "../services/user.service.js";
+import type { JWTPayload } from "@sentry/shared";
 
 export const authRouter = Router();
 
@@ -15,7 +18,11 @@ export const authRouter = Router();
 // =============================================================================
 
 const registerSchema = z.object({
-  handle: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
+  handle: z
+    .string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/),
   email: z.string().email(),
   password: z.string().min(8),
   displayName: z.string().max(100).optional(),
@@ -26,6 +33,10 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
 // =============================================================================
 // ROUTES
 // =============================================================================
@@ -34,23 +45,28 @@ const loginSchema = z.object({
  * POST /auth/register
  * Create a new user account
  */
-authRouter.post('/register', validateBody(registerSchema), async (req, res) => {
+authRouter.post("/register", validateBody(registerSchema), async (req, res) => {
   try {
     const { handle, email, password, displayName } = req.body;
 
     // Check if user exists
     const existingEmail = await userService.getUserByEmail(email);
     if (existingEmail) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: "Email already registered" });
     }
 
     const existingHandle = await userService.getUserByHandle(handle);
     if (existingHandle) {
-      return res.status(400).json({ error: 'Handle already taken' });
+      return res.status(400).json({ error: "Handle already taken" });
     }
 
     // Create user
-    const user = await userService.createUser({ handle, email, password, displayName });
+    const user = await userService.createUser({
+      handle,
+      email,
+      password,
+      displayName,
+    });
 
     // Generate tokens
     const tokens = generateTokens(user.id, user.handle);
@@ -60,8 +76,8 @@ authRouter.post('/register', validateBody(registerSchema), async (req, res) => {
       ...tokens,
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Registration failed" });
   }
 });
 
@@ -69,13 +85,13 @@ authRouter.post('/register', validateBody(registerSchema), async (req, res) => {
  * POST /auth/login
  * Authenticate and get tokens
  */
-authRouter.post('/login', validateBody(loginSchema), async (req, res) => {
+authRouter.post("/login", validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await userService.validateCredentials(email, password);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Update last active
@@ -89,17 +105,49 @@ authRouter.post('/login', validateBody(loginSchema), async (req, res) => {
       ...tokens,
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed" });
   }
 });
 
 /**
  * POST /auth/refresh
- * Refresh access token (simplified - in production use refresh token)
+ * Refresh access token using a valid refresh token
  */
-authRouter.post('/refresh', async (req, res) => {
-  // In production, this would validate a refresh token
-  // For now, require re-authentication
-  res.status(501).json({ error: 'Token refresh not implemented' });
+authRouter.post("/refresh", validateBody(refreshSchema), async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    // Verify the refresh token
+    const payload = jwt.verify(
+      refreshToken,
+      config.jwt.secret,
+    ) as JWTPayload & { type?: string };
+
+    // Ensure it's actually a refresh token
+    if (payload.type !== "refresh") {
+      return res.status(401).json({ error: "Invalid token type" });
+    }
+
+    // Verify user still exists
+    const user = await userService.getUserById(payload.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User no longer exists" });
+    }
+
+    // Issue new tokens
+    const tokens = generateTokens(user.id, user.handle);
+
+    res.json({
+      user,
+      ...tokens,
+    });
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res
+        .status(401)
+        .json({ error: "Refresh token expired, please login again" });
+    }
+    res.status(401).json({ error: "Invalid refresh token" });
+  }
 });

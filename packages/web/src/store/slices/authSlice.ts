@@ -1,5 +1,10 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { api } from '../../lib/api';
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import { api } from "../../lib/api";
+import { disconnectSocket } from "../../lib/socket";
 
 interface User {
   id: string;
@@ -11,6 +16,7 @@ interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -18,59 +24,90 @@ interface AuthState {
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('sentry_token'),
-  isAuthenticated: !!localStorage.getItem('sentry_token'),
+  token: localStorage.getItem("sentry_token"),
+  refreshToken: localStorage.getItem("sentry_refresh_token"),
+  isAuthenticated: !!localStorage.getItem("sentry_token"),
   isLoading: false,
   error: null,
 };
 
 export const login = createAsyncThunk(
-  'auth/login',
-  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+  "auth/login",
+  async (
+    credentials: { email: string; password: string },
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await api.post('/auth/login', credentials);
-      localStorage.setItem('sentry_token', response.data.accessToken);
+      const response = await api.post("/auth/login", credentials);
+      localStorage.setItem("sentry_token", response.data.accessToken);
+      if (response.data.refreshToken) {
+        localStorage.setItem(
+          "sentry_refresh_token",
+          response.data.refreshToken,
+        );
+      }
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Login failed');
+      return rejectWithValue(error.response?.data?.error || "Login failed");
     }
-  }
+  },
 );
 
 export const register = createAsyncThunk(
-  'auth/register',
-  async (data: { email: string; password: string; handle: string; displayName: string }, { rejectWithValue }) => {
+  "auth/register",
+  async (
+    data: {
+      email: string;
+      password: string;
+      handle: string;
+      displayName: string;
+    },
+    { rejectWithValue },
+  ) => {
     try {
-      const response = await api.post('/auth/register', data);
-      localStorage.setItem('sentry_token', response.data.accessToken);
+      const response = await api.post("/auth/register", data);
+      localStorage.setItem("sentry_token", response.data.accessToken);
+      if (response.data.refreshToken) {
+        localStorage.setItem(
+          "sentry_refresh_token",
+          response.data.refreshToken,
+        );
+      }
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Registration failed');
+      return rejectWithValue(
+        error.response?.data?.error || "Registration failed",
+      );
     }
-  }
+  },
 );
 
 export const fetchCurrentUser = createAsyncThunk(
-  'auth/fetchCurrentUser',
+  "auth/fetchCurrentUser",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/users/me');
+      const response = await api.get("/users/me");
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch user');
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch user",
+      );
     }
-  }
+  },
 );
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.refreshToken = null;
       state.isAuthenticated = false;
-      localStorage.removeItem('sentry_token');
+      localStorage.removeItem("sentry_token");
+      localStorage.removeItem("sentry_refresh_token");
+      disconnectSocket();
     },
     clearError: (state) => {
       state.error = null;
@@ -86,6 +123,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken || null;
         state.isAuthenticated = true;
       })
       .addCase(login.rejected, (state, action) => {
@@ -100,6 +138,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken || null;
         state.isAuthenticated = true;
       })
       .addCase(register.rejected, (state, action) => {
@@ -108,6 +147,16 @@ const authSlice = createSlice({
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload;
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        // Token is invalid/expired — log user out
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        localStorage.removeItem("sentry_token");
+        localStorage.removeItem("sentry_refresh_token");
+        disconnectSocket();
       });
   },
 });

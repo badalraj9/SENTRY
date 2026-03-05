@@ -1,5 +1,3 @@
-'use client';
-
 import { useAppSelector } from '../../../../store/hooks';
 import { cn } from '../../../../shared/lib/utils';
 import { Avatar, Button } from '../../../../shared/ui';

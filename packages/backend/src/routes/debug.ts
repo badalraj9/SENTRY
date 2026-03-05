@@ -3,16 +3,25 @@
  * Exposes Neural Hub reasoning for debugging and transparency
  */
 
-import { Router } from 'express';
-import { z } from 'zod';
-import { authMiddleware } from '../middleware/auth.js';
-import { validateBody, validateParams, uuidSchema } from '../middleware/validation.js';
-import { neuralHub, ProcessingContext } from '../intelligence/neural-hub.js';
-import { learningEngine } from '../intelligence/learning.js';
-import * as neuralStateService from '../services/neural-state.service.js';
-import * as chatService from '../services/chat.service.js';
-import * as projectService from '../services/project.service.js';
-import * as intentService from '../services/intent.service.js';
+import { Router } from "express";
+import { z } from "zod";
+import { authMiddleware } from "../middleware/auth.js";
+import {
+  validateBody,
+  validateParams,
+  uuidSchema,
+} from "../middleware/validation.js";
+import { neuralHub, ProcessingContext } from "../intelligence/neural-hub.js";
+import { learningEngine } from "../intelligence/learning.js";
+import * as neuralStateService from "../services/neural-state.service.js";
+import * as chatService from "../services/chat.service.js";
+import * as projectService from "../services/project.service.js";
+import * as intentService from "../services/intent.service.js";
+import {
+  DECISION_PATTERNS,
+  STRUCTURAL_WEIGHTS,
+  CHAT_TYPE_WEIGHTS,
+} from "@sentry/shared";
 
 export const debugRouter = Router();
 
@@ -37,7 +46,7 @@ const analyzeSchema = z.object({
  * Analyze a message through the Neural Hub without creating a proposal
  * Returns full reasoning trace for debugging
  */
-debugRouter.post('/analyze', validateBody(analyzeSchema), async (req, res) => {
+debugRouter.post("/analyze", validateBody(analyzeSchema), async (req, res) => {
   try {
     const { content, chatId, projectId } = req.body;
     const userId = req.user!.userId;
@@ -46,7 +55,7 @@ debugRouter.post('/analyze', validateBody(analyzeSchema), async (req, res) => {
     const ctx = await buildDebugContext(chatId);
 
     // Get neural state
-    const pId = projectId || 'debug-project';
+    const pId = projectId || "debug-project";
     const state = await neuralStateService.getOrCreateNeuralState(userId, pId);
 
     // Process through Neural Hub
@@ -67,8 +76,8 @@ debugRouter.post('/analyze', validateBody(analyzeSchema), async (req, res) => {
       state: stateSummary,
     });
   } catch (error) {
-    console.error('Debug analyze error:', error);
-    res.status(500).json({ error: 'Analysis failed' });
+    console.error("Debug analyze error:", error);
+    res.status(500).json({ error: "Analysis failed" });
   }
 });
 
@@ -77,18 +86,18 @@ debugRouter.post('/analyze', validateBody(analyzeSchema), async (req, res) => {
  * Get current neural state for debugging
  */
 debugRouter.get(
-  '/state/:projectId',
+  "/state/:projectId",
   validateParams(z.object({ projectId: uuidSchema })),
   async (req, res) => {
     const state = await neuralStateService.getNeuralState(
       req.user!.userId,
-      req.params.projectId
+      req.params.projectId,
     );
 
     if (!state) {
       return res.json({
         exists: false,
-        message: 'No neural state exists for this user/project combination',
+        message: "No neural state exists for this user/project combination",
       });
     }
 
@@ -114,22 +123,22 @@ debugRouter.get(
       },
       weights: state.weights,
     });
-  }
+  },
 );
 
 /**
  * GET /debug/patterns
  * List all decision patterns and their weights
  */
-debugRouter.get('/patterns', (req, res) => {
-  const { DECISION_PATTERNS, STRUCTURAL_WEIGHTS, CHAT_TYPE_WEIGHTS } = require('@sentry/shared');
-
+debugRouter.get("/patterns", (req, res) => {
   res.json({
-    linguistic: DECISION_PATTERNS.map((p: { name: string; baseWeight: number; pattern: RegExp }) => ({
-      name: p.name,
-      baseWeight: p.baseWeight,
-      pattern: p.pattern.toString(),
-    })),
+    linguistic: DECISION_PATTERNS.map(
+      (p: { name: string; baseWeight: number; pattern: RegExp }) => ({
+        name: p.name,
+        baseWeight: p.baseWeight,
+        pattern: p.pattern.toString(),
+      }),
+    ),
     structural: STRUCTURAL_WEIGHTS,
     chatType: CHAT_TYPE_WEIGHTS,
   });
@@ -140,28 +149,40 @@ debugRouter.get('/patterns', (req, res) => {
  * Simulate what would happen if a proposal was confirmed/rejected
  */
 debugRouter.post(
-  '/simulate-learning',
-  validateBody(z.object({
-    projectId: uuidSchema,
-    outcome: z.enum(['confirmed', 'rejected']),
-    signals: z.array(z.object({
-      name: z.string(),
-      type: z.string(),
-      value: z.number(),
-      baseWeight: z.number(),
-    })),
-  })),
+  "/simulate-learning",
+  validateBody(
+    z.object({
+      projectId: uuidSchema,
+      outcome: z.enum(["confirmed", "rejected"]),
+      signals: z.array(
+        z.object({
+          name: z.string(),
+          type: z.string(),
+          value: z.number(),
+          baseWeight: z.number(),
+        }),
+      ),
+    }),
+  ),
   async (req, res) => {
     const { projectId, outcome, signals } = req.body;
     const userId = req.user!.userId;
 
-    const currentState = await neuralStateService.getOrCreateNeuralState(userId, projectId);
+    const currentState = await neuralStateService.getOrCreateNeuralState(
+      userId,
+      projectId,
+    );
     const simulatedState = learningEngine.learn(currentState, signals, outcome);
-    const report = learningEngine.generateLearningReport(currentState, simulatedState, signals, outcome);
+    const report = learningEngine.generateLearningReport(
+      currentState,
+      simulatedState,
+      signals,
+      outcome,
+    );
 
     res.json({
       simulation: true,
-      notApplied: 'This is a simulation - no changes were saved',
+      notApplied: "This is a simulation - no changes were saved",
       report,
       stateBefore: {
         threshold: currentState.threshold,
@@ -172,7 +193,7 @@ debugRouter.post(
         acceptanceRate: learningEngine.getAcceptanceRate(simulatedState),
       },
     });
-  }
+  },
 );
 
 // =============================================================================
@@ -185,7 +206,7 @@ async function buildDebugContext(chatId?: string): Promise<ProcessingContext> {
   if (!chatId) {
     // Default debug context
     return {
-      chatType: 'group_collab',
+      chatType: "group_collab",
       isAuthorMaintainer: false,
       participantCount: 3,
       threadDepth: 0,
@@ -204,7 +225,7 @@ async function buildDebugContext(chatId?: string): Promise<ProcessingContext> {
   const activeIntent = await intentService.getActiveIntent(chatId);
 
   return {
-    chatType: chat?.type || 'group_collab',
+    chatType: chat?.type || "group_collab",
     isAuthorMaintainer: false,
     participantCount: await chatService.getParticipantCount(chatId),
     threadDepth: 0,

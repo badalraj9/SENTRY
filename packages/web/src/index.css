@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -15,7 +15,7 @@
 
   html {
     @apply antialiased;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -47,9 +47,9 @@
     @apply bg-accent/30 text-terminal-50;
   }
 
-  /* Focus Outline */
+  /* Focus Outline (A11y Enhancement) */
   :focus-visible {
-    @apply outline-none ring-1 ring-accent ring-offset-0;
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-terminal-950;
   }
 }
 
@@ -180,7 +180,7 @@
 
   /* Terminal cursor blink */
   .cursor-blink::after {
-    content: '▋';
+    content: "▋";
     @apply text-accent animate-blink ml-0.5;
   }
 
@@ -192,8 +192,8 @@
     overflow: hidden;
   }
 
-  /* Glass effect */
+  /* Glass effect (Performance Enhancement: removed heavy backdrop blur) */
   .glass {
-    @apply bg-terminal-900/80 backdrop-blur-md;
+    @apply bg-terminal-900/95 shadow-lg border border-terminal-800;
   }
 }

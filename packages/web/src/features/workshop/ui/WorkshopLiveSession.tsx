@@ -1,5 +1,3 @@
-'use client';
-
 import * as React from 'react';
 import { useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';

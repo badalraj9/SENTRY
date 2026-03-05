@@ -1,5 +1,3 @@
-'use client';
-
 import { CheckCircle2, Circle, Radio } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
 import type { WorkshopPhase } from '../../../store/slices/workshopSlice';

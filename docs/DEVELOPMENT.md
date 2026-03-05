@@ -23,14 +23,14 @@
 
 ### Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Node.js | 20+ | Runtime |
-| npm | 10+ | Package manager |
-| Docker | 24+ | Containerization |
-| Docker Compose | 2.20+ | Multi-container orchestration |
-| Git | 2.40+ | Version control |
-| VS Code | Latest | Recommended IDE |
+| Tool           | Version | Purpose                       |
+| -------------- | ------- | ----------------------------- |
+| Node.js        | 20+     | Runtime                       |
+| npm            | 10+     | Package manager               |
+| Docker         | 24+     | Containerization              |
+| Docker Compose | 2.20+   | Multi-container orchestration |
+| Git            | 2.40+   | Version control               |
+| VS Code        | Latest  | Recommended IDE               |
 
 ### VS Code Extensions
 
@@ -124,7 +124,7 @@ sentry/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── frontend/                # React web application
+│   ├── web/                     # React web application (renamed from frontend)
 │   │   ├── src/
 │   │   │   ├── main.tsx
 │   │   │   ├── App.tsx
@@ -161,15 +161,16 @@ sentry/
 │       ├── 005_decisions.sql
 │       └── 006_neural_states.sql
 │
-├── docker/
-│   ├── docker-compose.yml
-│   └── Dockerfile
-│
+├── docker-compose.yml           # Infrastructure setup
+
 ├── docs/
 │   ├── DEVELOPMENT.md           # This file
 │   ├── API.md
-│   └── ARCHITECTURE.md
-│
+│   ├── ARCHITECTURE.md
+│   ├── USER_GUIDE.md
+│   └── DEPLOYMENT.md
+
+├── figma-mcp-server/            # Figma MCP integration server
 ├── package.json                 # Root workspace config
 ├── tsconfig.base.json           # Shared TS config
 └── .env.example
@@ -187,7 +188,7 @@ npm run dev
 
 # Start individual services
 npm run dev:backend    # API server on :3000
-npm run dev:frontend   # Vite dev server on :5173
+npm run dev:web        # Vite dev server on :5173
 npm run dev:cli        # CLI in watch mode
 
 # Database operations
@@ -199,12 +200,12 @@ npm run db:reset       # Drop, create, migrate, seed
 
 ### Development Ports
 
-| Service | Port | Description |
-|---------|------|-------------|
+| Service     | Port | Description      |
+| ----------- | ---- | ---------------- |
 | Backend API | 3000 | REST + WebSocket |
-| Frontend | 5173 | Vite dev server |
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Cache |
+| Frontend    | 5173 | Vite dev server  |
+| PostgreSQL  | 5432 | Database         |
+| Redis       | 6379 | Cache            |
 
 ### Git Workflow
 
@@ -232,7 +233,7 @@ Types:
   chore    - Build/tooling
 
 Scopes:
-  backend, frontend, cli, shared, db, intelligence
+  backend, web, cli, shared, db, intelligence
 ```
 
 ---
@@ -336,15 +337,15 @@ New Message
 const PATTERNS = [
   { regex: /\bdecided\b/i, weight: 0.35 },
   { regex: /\blet's go with\b/i, weight: 0.32 },
-  { regex: /\bwe'll use\b/i, weight: 0.30 },
+  { regex: /\bwe'll use\b/i, weight: 0.3 },
 ];
 
 // Structural Sensor - Thread/reaction analysis
 function structuralScore(msg: Message, ctx: Context): number {
   let score = 0;
-  score += Math.min(msg.threadDepth * 0.03, 0.15);  // Depth bonus
-  score += ctx.isAuthorMaintainer ? 0.12 : 0;        // Authority
-  score += Math.min(msg.ackRatio * 0.05, 0.10);      // Acknowledgments
+  score += Math.min(msg.threadDepth * 0.03, 0.15); // Depth bonus
+  score += ctx.isAuthorMaintainer ? 0.12 : 0; // Authority
+  score += Math.min(msg.ackRatio * 0.05, 0.1); // Acknowledgments
   return score;
 }
 ```
@@ -377,10 +378,10 @@ function sigmoid(z: number, threshold: number, k = 10): number {
 function updateWeight(
   current: number,
   signal: number,
-  outcome: 'confirmed' | 'rejected',
-  η = 0.05
+  outcome: "confirmed" | "rejected",
+  η = 0.05,
 ): number {
-  const direction = outcome === 'confirmed' ? 1 : -1;
+  const direction = outcome === "confirmed" ? 1 : -1;
   return clamp(current + η * signal * direction, 0.01, 1.0);
 }
 
@@ -569,8 +570,12 @@ npm run test:coverage
 ```typescript
 const TEST_CORPUS = [
   { text: "Let's go with Redis", expected: true, minConfidence: 0.75 },
-  { text: "What about Redis?", expected: false, maxConfidence: 0.30 },
-  { text: "Decided: PostgreSQL for storage", expected: true, minConfidence: 0.85 },
+  { text: "What about Redis?", expected: false, maxConfidence: 0.3 },
+  {
+    text: "Decided: PostgreSQL for storage",
+    expected: true,
+    minConfidence: 0.85,
+  },
 ];
 
 // Target metrics:
@@ -587,7 +592,7 @@ const TEST_CORPUS = [
 
 ```typescript
 // Use explicit types
-function processMessage(msg: Message, ctx: Context): ProcessResult { }
+function processMessage(msg: Message, ctx: Context): ProcessResult {}
 
 // Prefer interfaces over types for objects
 interface Message {
@@ -598,9 +603,9 @@ interface Message {
 
 // Use enums for fixed sets
 enum ChatType {
-  Direct = 'direct',
-  Group = 'group',
-  Workshop = 'workshop',
+  Direct = "direct",
+  Group = "group",
+  Workshop = "workshop",
 }
 
 // Prefer const assertions
@@ -617,7 +622,7 @@ const WEIGHTS = {
 class NotFoundError extends Error {
   constructor(entity: string, id: string) {
     super(`${entity} not found: ${id}`);
-    this.name = 'NotFoundError';
+    this.name = "NotFoundError";
   }
 }
 
@@ -663,11 +668,11 @@ docker run -d \
 
 ### Environment Configurations
 
-| Environment | Database | Redis | Features |
-|-------------|----------|-------|----------|
-| Development | Local Docker | Local Docker | Debug logging, hot reload |
-| Staging | Cloud PostgreSQL | Cloud Redis | Full features, test data |
-| Production | Cloud PostgreSQL | Cloud Redis | Optimized, monitoring |
+| Environment | Database         | Redis        | Features                  |
+| ----------- | ---------------- | ------------ | ------------------------- |
+| Development | Local Docker     | Local Docker | Debug logging, hot reload |
+| Staging     | Cloud PostgreSQL | Cloud Redis  | Full features, test data  |
+| Production  | Cloud PostgreSQL | Cloud Redis  | Optimized, monitoring     |
 
 ---
 
@@ -676,6 +681,7 @@ docker run -d \
 ### Common Issues
 
 **Database connection failed**
+
 ```bash
 # Check if PostgreSQL is running
 docker ps | grep postgres
@@ -685,6 +691,7 @@ docker-compose restart postgres
 ```
 
 **Redis connection failed**
+
 ```bash
 # Check if Redis is running
 docker ps | grep redis
@@ -694,6 +701,7 @@ redis-cli -h localhost -p 6379 ping
 ```
 
 **Port already in use**
+
 ```bash
 # Find process using port
 netstat -ano | findstr :3000
@@ -712,4 +720,4 @@ taskkill /PID <pid> /F
 
 ---
 
-*Last updated: January 2026*
+_Last updated: January 2026_

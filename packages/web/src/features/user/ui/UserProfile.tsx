@@ -1,308 +1,293 @@
-'use client';
-
-import { useState } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAppSelector } from '../../../store/hooks';
-import { cn } from '../../../shared/lib/utils';
-import { Button, Badge, Kbd } from '../../../shared/ui';
-import {
-  Shield,
-  Activity,
-  Zap,
-  Command,
-  Key,
-  LogOut,
-  Copy,
-  Check,
-  Plus,
-  Trash2,
-  Bell,
-  BellOff,
-  Layout,
-  Moon,
-  Sun,
-} from 'lucide-react';
+import { Terminal, Shield, Loader2 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   USER PROFILE - THE DOSSIER
-   Digital identity card with stats, shortcuts, and API tokens
+   OPERATOR DOSSIER - TERMINAL PROFILE
+   Full CLI-style profile experience matching Login/Register aesthetic
    ═══════════════════════════════════════════════════════════════════════════ */
+
+interface LogEntry {
+  id: string;
+  text: string;
+  type: 'info' | 'success' | 'error' | 'warning' | 'header' | 'divider' | 'classified';
+}
 
 export default function UserProfile() {
   const { user } = useAppSelector((state) => state.auth);
-  const [status, setStatus] = useState<'ONLINE' | 'FOCUS' | 'AWAY'>('ONLINE');
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const hasBooted = useRef(false);
 
-  // Mock data (replace with real API calls)
+  const [command, setCommand] = useState('');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Mock stats
   const stats = {
     decisions: 142,
     documents: 38,
     workshops: 12,
-    velocity: 'High',
-    uptime: '98.2%',
+    messages: 1847,
+    uptime: '99.2%',
+    clearance: 'LEVEL 5',
   };
 
-  const tokens = [
-    { id: '1', name: 'CLI_Agent_01', lastUsed: '2m ago', created: '2 weeks ago' },
-    { id: '2', name: 'GitHub_Action', lastUsed: '1d ago', created: '1 month ago' },
-  ];
+  // Boot sequence animation - runs only once
+  useEffect(() => {
+    if (hasBooted.current) return;
+    hasBooted.current = true;
 
-  const shortcuts = [
-    { action: 'Quick Search', keys: '⌘K' },
-    { action: 'AI Assistant', keys: '⌘J' },
-    { action: 'New Document', keys: '⌘N' },
-    { action: 'Toggle Sidebar', keys: '⌘B' },
-    { action: 'Toggle Theme', keys: '⌘\\' },
-    { action: 'Command Palette', keys: '⌘P' },
-  ];
+    const bootSequence: LogEntry[] = [
+      { id: '1', text: 'SENTRY_OS v4.0.2 [PERSONNEL DATABASE]', type: 'header' },
+      { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+      { id: '3', text: 'INIT: ACCESSING PERSONNEL FILE...', type: 'info' },
+      { id: '4', text: 'AUTH: DECRYPTING BIOMETRIC DATA...', type: 'info' },
+      { id: '5', text: '✓ IDENTITY VERIFIED', type: 'success' },
+      { id: '6', text: '✓ FILE ACCESS GRANTED', type: 'success' },
+      { id: '7', text: '', type: 'info' },
+      { id: '8', text: '── OPERATOR DOSSIER ───────────────────────────────────', type: 'divider' },
+      { id: '9', text: '', type: 'info' },
+      { id: '10', text: `  HANDLE:        @${user?.handle || 'unknown'}`, type: 'info' },
+      { id: '11', text: `  DISPLAY_NAME:  ${user?.displayName || 'Commander'}`, type: 'info' },
+      { id: '12', text: `  EMAIL:         ${user?.email || 'classified@sentry.os'}`, type: 'info' },
+      { id: '13', text: `  OPERATOR_ID:   ${user?.id?.slice(0, 8) || 'UNKNOWN'}...`, type: 'info' },
+      { id: '14', text: `  CLEARANCE:     ${stats.clearance}`, type: 'success' },
+      { id: '15', text: `  STATUS:        ACTIVE`, type: 'success' },
+      { id: '16', text: '', type: 'info' },
+      { id: '17', text: '── ACTIVITY METRICS ───────────────────────────────────', type: 'divider' },
+      { id: '18', text: '', type: 'info' },
+      { id: '19', text: `  DECISIONS_MADE:     ${stats.decisions}`, type: 'info' },
+      { id: '20', text: `  DOCUMENTS_CREATED:  ${stats.documents}`, type: 'info' },
+      { id: '21', text: `  WORKSHOPS_LED:      ${stats.workshops}`, type: 'info' },
+      { id: '22', text: `  MESSAGES_SENT:      ${stats.messages}`, type: 'info' },
+      { id: '23', text: `  SESSION_UPTIME:     ${stats.uptime}`, type: 'success' },
+      { id: '24', text: '', type: 'info' },
+      { id: '25', text: '── API TOKENS ─────────────────────────────────────────', type: 'divider' },
+      { id: '26', text: '', type: 'info' },
+      { id: '27', text: '  [1] CLI_Agent_01      (active, last used: 2m ago)', type: 'success' },
+      { id: '28', text: '  [2] GitHub_Action     (active, last used: 1d ago)', type: 'success' },
+      { id: '29', text: '  [3] Webhook_Handler   (expired)', type: 'warning' },
+      { id: '30', text: '', type: 'info' },
+      { id: '31', text: '── KEYBOARD SHORTCUTS ─────────────────────────────────', type: 'divider' },
+      { id: '32', text: '', type: 'info' },
+      { id: '33', text: '  ⌘K  Quick Search       ⌘J  AI Assistant', type: 'info' },
+      { id: '34', text: '  ⌘N  New Document       ⌘B  Toggle Sidebar', type: 'info' },
+      { id: '35', text: '  ⌘P  Command Palette    ⌘\\  Toggle Theme', type: 'info' },
+      { id: '36', text: '', type: 'info' },
+      { id: '37', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+      { id: '38', text: 'FILE ACCESS COMPLETE. AWAITING COMMAND.', type: 'success' },
+      { id: '39', text: '', type: 'info' },
+    ];
 
-  const handleCopyToken = (id: string) => {
-    // Mock copy
-    setCopiedToken(id);
-    setTimeout(() => setCopiedToken(null), 2000);
+    // Staggered boot animation using recursive setTimeout
+    let currentIndex = 0;
+    
+    const addNextLog = () => {
+      if (currentIndex < bootSequence.length) {
+        setLogs(prev => [...prev, bootSequence[currentIndex]]);
+        currentIndex++;
+        setTimeout(addNextLog, 35);
+      } else {
+        setIsLoading(false);
+        inputRef.current?.focus();
+      }
+    };
+    
+    addNextLog();
+  }, []); // Empty deps - run once
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  // Handle commands
+  const handleCommand = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter' || !command.trim()) return;
+
+    const cmd = command.toLowerCase().trim();
+    setLogs(prev => [...prev, { id: Date.now().toString(), text: `cmd> ${command}`, type: 'info' }]);
+    setCommand('');
+
+    // Command routing
+    if (cmd === 'help' || cmd === '?') {
+      addLogs([
+        { text: '', type: 'info' },
+        { text: '── DOSSIER COMMANDS ───────────────────────────────────', type: 'divider' },
+        { text: '  back       → Return to command center', type: 'info' },
+        { text: '  tokens     → Manage API tokens', type: 'info' },
+        { text: '  export     → Export profile data', type: 'info' },
+        { text: '  settings   → System preferences', type: 'info' },
+        { text: '  logout     → Terminate session', type: 'info' },
+        { text: '  clear      → Clear terminal', type: 'info' },
+        { text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'back' || cmd === 'home') {
+      addLogs([{ text: '→ RETURNING TO COMMAND CENTER...', type: 'success' }]);
+      setTimeout(() => navigate('/'), 500);
+    } else if (cmd === 'tokens') {
+      addLogs([
+        { text: '', type: 'info' },
+        { text: '── TOKEN MANAGEMENT ───────────────────────────────────', type: 'divider' },
+        { text: '  Commands: tokens new | tokens revoke <id>', type: 'info' },
+        { text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'tokens new') {
+      const newToken = `sentry_${Math.random().toString(36).slice(2, 18)}`;
+      addLogs([
+        { text: '✓ NEW TOKEN GENERATED:', type: 'success' },
+        { text: `  ${newToken}`, type: 'warning' },
+        { text: '  ⚠ COPY NOW - WILL NOT BE SHOWN AGAIN', type: 'warning' },
+        { text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'export') {
+      addLogs([
+        { text: 'EXPORTING PROFILE DATA...', type: 'info' },
+        { text: '✓ EXPORT COMPLETE: profile_export.json', type: 'success' },
+        { text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'settings') {
+      addLogs([
+        { text: '', type: 'info' },
+        { text: '── SYSTEM PREFERENCES ─────────────────────────────────', type: 'divider' },
+        { text: '  THEME:          DARK', type: 'info' },
+        { text: '  NOTIFICATIONS:  ENABLED', type: 'success' },
+        { text: '  FOCUS_MODE:     DISABLED', type: 'info' },
+        { text: '  COMPACT_MODE:   DISABLED', type: 'info' },
+        { text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'clear') {
+      setLogs([
+        { id: '1', text: 'SENTRY_OS v4.0.2 [PERSONNEL DATABASE]', type: 'header' },
+        { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
+        { id: '3', text: 'TERMINAL CLEARED.', type: 'success' },
+        { id: '4', text: '', type: 'info' },
+      ]);
+    } else if (cmd === 'logout' || cmd === 'exit') {
+      addLogs([
+        { text: 'TERMINATING SESSION...', type: 'warning' },
+        { text: 'GOODBYE, COMMANDER.', type: 'info' },
+      ]);
+      setTimeout(() => navigate('/login'), 1000);
+    } else {
+      addLogs([
+        { text: `ERR: UNKNOWN COMMAND "${cmd}"`, type: 'error' },
+        { text: 'TYPE "help" FOR AVAILABLE COMMANDS', type: 'info' },
+      ]);
+    }
+  };
+
+  const addLogs = (entries: Omit<LogEntry, 'id'>[]) => {
+    const newLogs = entries.map((e, i) => ({
+      ...e,
+      id: `${Date.now()}-${i}`,
+    }));
+    setLogs(prev => [...prev, ...newLogs]);
+  };
+
+  const getLogColor = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'success': return 'text-success';
+      case 'error': return 'text-error';
+      case 'warning': return 'text-warning';
+      case 'header': return 'text-success font-bold';
+      case 'divider': return 'text-terminal-600';
+      case 'classified': return 'text-error';
+      default: return 'text-terminal-400';
+    }
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto py-8 px-6 space-y-8">
-        {/* ═══════════════════════════════════════════════════════════════════
-            THE ID CARD HEADER
-           ═══════════════════════════════════════════════════════════════════ */}
-        <div className="bg-terminal-900 border border-terminal-700 p-6 rounded-lg relative overflow-hidden">
-          {/* Holographic glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-success/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    <div
+      className="h-full w-full bg-terminal-950 text-success font-mono text-sm overflow-hidden flex flex-col"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-terminal-500">
+          <Terminal className="w-4 h-4" />
+          <span className="text-xs uppercase tracking-wider">Personnel Database</span>
+          <span className="text-terminal-700">•</span>
+          <span className="text-success text-xs">@{user?.handle || 'unknown'}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-terminal-600 text-xs">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span>CLEARANCE {stats.clearance}</span>
+          </div>
+          <div className="flex items-center gap-2 text-terminal-600 text-xs">
+            <Shield className="w-3 h-3" />
+            <span>CLASSIFIED</span>
+          </div>
+        </div>
+      </div>
 
-          <div className="flex items-start gap-6 relative z-10">
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-20 h-20 bg-terminal-800 rounded-lg border-2 border-terminal-600 flex items-center justify-center">
-                <span className="text-2xl font-mono font-bold text-terminal-400">
-                  {(user?.displayName || user?.handle || 'OP').slice(0, 2).toUpperCase()}
-                </span>
+      {/* Terminal Content */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          {/* Logs */}
+          <div className="space-y-0.5">
+            {logs.filter(Boolean).map((log) => (
+              <motion.div
+                key={log.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.05 }}
+                className={getLogColor(log.type)}
+              >
+                {log.text || '\u00A0'}
+              </motion.div>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
+
+          {/* Command Input */}
+          {!isLoading && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-terminal-500">cmd&gt;</span>
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={command}
+                  onChange={(e) => setCommand(e.target.value)}
+                  onKeyDown={handleCommand}
+                  className="bg-transparent border-none outline-none w-full text-terminal-100"
+                  placeholder=""
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {/* Blinking Cursor */}
+                <motion.div
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.7 }}
+                  className="absolute top-0 h-5 w-2 bg-success pointer-events-none"
+                  style={{ left: `${command.length * 9.6}px` }}
+                />
               </div>
-              <div
-                className={cn(
-                  'absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-terminal-900',
-                  status === 'ONLINE' && 'bg-success',
-                  status === 'FOCUS' && 'bg-warning',
-                  status === 'AWAY' && 'bg-terminal-500'
-                )}
-              />
             </div>
-
-            {/* Info */}
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-xl font-semibold text-terminal-100">
-                    {user?.displayName || user?.handle || 'Operator'}
-                  </h1>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Shield className="w-3.5 h-3.5 text-success" />
-                    <Badge variant="success">L4_ARCHITECT</Badge>
-                    <span className="text-[10px] text-terminal-500 font-mono">
-                      ID: {user?.id?.slice(0, 8) || '---'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-terminal-500 mt-2">{user?.email}</p>
-                </div>
-                <Button variant="danger" size="sm" className="gap-1.5">
-                  <LogOut className="w-3.5 h-3.5" />
-                  Disconnect
-                </Button>
-              </div>
-
-              {/* Status Selector */}
-              <div className="flex gap-2 mt-4">
-                {(['ONLINE', 'FOCUS', 'AWAY'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatus(s)}
-                    className={cn(
-                      'px-3 py-1.5 text-[10px] font-mono rounded border transition-all',
-                      status === s
-                        ? 'bg-terminal-800 border-terminal-600 text-terminal-200'
-                        : 'border-terminal-700 text-terminal-500 hover:text-terminal-300'
-                    )}
-                  >
-                    {s === 'FOCUS' && <BellOff className="w-3 h-3 inline mr-1" />}
-                    {s === 'ONLINE' && <Bell className="w-3 h-3 inline mr-1" />}
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-5 gap-3 mt-6 pt-6 border-t border-terminal-700">
-            <StatBox icon={Activity} label="Decisions" value={stats.decisions.toString()} />
-            <StatBox icon={Activity} label="Documents" value={stats.documents.toString()} />
-            <StatBox icon={Activity} label="Workshops" value={stats.workshops.toString()} />
-            <StatBox icon={Zap} label="Velocity" value={stats.velocity} highlight />
-            <StatBox icon={Activity} label="Uptime" value={stats.uptime} />
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            CONTROL GRID
-           ═══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Keybindings */}
-          <div className="bg-terminal-900 border border-terminal-700 rounded-lg p-5">
-            <div className="flex items-center gap-2 mb-4 text-terminal-400">
-              <Command className="w-4 h-4" />
-              <h3 className="text-sm font-medium">Neural Links (Shortcuts)</h3>
-            </div>
-            <div className="space-y-2">
-              {shortcuts.map((shortcut) => (
-                <div key={shortcut.action} className="flex justify-between items-center py-1.5">
-                  <span className="text-xs text-terminal-400">{shortcut.action}</span>
-                  <Kbd>{shortcut.keys}</Kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* API Tokens */}
-          <div className="bg-terminal-900 border border-terminal-700 rounded-lg p-5">
-            <div className="flex items-center gap-2 mb-4 text-terminal-400">
-              <Key className="w-4 h-4" />
-              <h3 className="text-sm font-medium">Access Tokens</h3>
-            </div>
-            <div className="space-y-3">
-              {tokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="p-3 bg-terminal-950 rounded border border-terminal-700 flex justify-between items-center"
-                >
-                  <div>
-                    <div className="text-xs text-terminal-200 font-medium font-mono">
-                      {token.name}
-                    </div>
-                    <div className="text-[10px] text-terminal-600 mt-0.5">
-                      Last used: {token.lastUsed}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopyToken(token.id)}
-                      className="p-1.5 text-terminal-500 hover:text-terminal-300 hover:bg-terminal-800 rounded transition-colors"
-                    >
-                      {copiedToken === token.id ? (
-                        <Check className="w-3.5 h-3.5 text-success" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                    <button className="p-1.5 text-terminal-500 hover:text-error hover:bg-error/10 rounded transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button className="w-full py-2.5 border border-dashed border-terminal-600 text-terminal-500 text-xs font-mono rounded hover:bg-terminal-800 hover:text-terminal-300 transition-colors flex items-center justify-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" />
-                Generate New Token
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            PREFERENCES
-           ═══════════════════════════════════════════════════════════════════ */}
-        <div className="bg-terminal-900 border border-terminal-700 rounded-lg p-5">
-          <h3 className="text-sm font-medium text-terminal-300 mb-4">Preferences</h3>
-          <div className="space-y-4">
-            <PreferenceToggle
-              icon={Layout}
-              label="Compact Mode"
-              description="Reduce padding for high-density data"
-              defaultChecked={false}
-            />
-            <PreferenceToggle
-              icon={Moon}
-              label="Dark Theme"
-              description="Always use dark mode (default)"
-              defaultChecked={true}
-            />
-            <PreferenceToggle
-              icon={BellOff}
-              label="Focus Mode"
-              description="Mute all notifications"
-              defaultChecked={false}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Sub-components
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-function StatBox({
-  icon: Icon,
-  label,
-  value,
-  highlight,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="bg-terminal-950/50 p-3 rounded border border-terminal-700/50">
-      <div className="text-[10px] text-terminal-500 uppercase font-mono font-semibold flex items-center gap-1 mb-1">
-        <Icon className="w-2.5 h-2.5" />
-        {label}
-      </div>
-      <div className={cn('text-lg font-mono font-semibold', highlight ? 'text-success' : 'text-terminal-200')}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function PreferenceToggle({
-  icon: Icon,
-  label,
-  description,
-  defaultChecked,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  description: string;
-  defaultChecked: boolean;
-}) {
-  const [checked, setChecked] = useState(defaultChecked);
-
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-start gap-3">
-        <Icon className="w-4 h-4 text-terminal-500 mt-0.5" />
-        <div>
-          <div className="text-sm text-terminal-200">{label}</div>
-          <div className="text-[10px] text-terminal-500">{description}</div>
-        </div>
-      </div>
-      <button
-        onClick={() => setChecked(!checked)}
-        className={cn(
-          'w-10 h-5 rounded-full transition-colors relative',
-          checked ? 'bg-success' : 'bg-terminal-700'
-        )}
-      >
-        <div
-          className={cn(
-            'absolute top-0.5 w-4 h-4 rounded-full bg-terminal-100 transition-transform',
-            checked ? 'translate-x-5' : 'translate-x-0.5'
           )}
-        />
-      </button>
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="mt-4 flex items-center gap-2 text-success animate-pulse">
+              <Loader2 className="animate-spin w-4 h-4" />
+              <span>DECRYPTING FILE...</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
+        SENTRY COLLABORATIVE OS • PERSONNEL FILE RESTRICTED
+      </div>
     </div>
   );
 }

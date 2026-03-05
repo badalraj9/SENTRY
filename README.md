@@ -30,19 +30,20 @@ SENTRY is a **standalone, developer-first collaboration platform** where everyth
 
 ## Core Philosophy
 
-| Principle | Description |
-|-----------|-------------|
-| **Projects are living entities** | Not just folders — they have pulse, history, knowledge |
-| **Knowledge is first-class** | Decisions aren't buried in chats — they're structured, searchable, linked |
-| **Collaboration is structured** | Intent-driven discussions, not noisy channels |
-| **Automation is ambient** | Silent by default, never intrusive |
-| **One intelligence, many contexts** | The Neural Hub adapts to each user and project |
+| Principle                           | Description                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| **Projects are living entities**    | Not just folders — they have pulse, history, knowledge                    |
+| **Knowledge is first-class**        | Decisions aren't buried in chats — they're structured, searchable, linked |
+| **Collaboration is structured**     | Intent-driven discussions, not noisy channels                             |
+| **Automation is ambient**           | Silent by default, never intrusive                                        |
+| **One intelligence, many contexts** | The Neural Hub adapts to each user and project                            |
 
 ---
 
 ## Key Features
 
 ### 🎯 Intent Checkpoints
+
 Set explicit goals for discussions. The system scopes all analysis to your current intent.
 
 ```
@@ -50,6 +51,7 @@ Set explicit goals for discussions. The system scopes all analysis to your curre
 ```
 
 ### 🧠 Decision Detection
+
 The Neural Hub detects decisions in natural conversation:
 
 ```
@@ -61,6 +63,7 @@ System:  [Decision Detected: Confidence 0.82]
 ```
 
 ### 🔍 Decision Recall
+
 Instantly retrieve past decisions with context:
 
 ```
@@ -71,9 +74,11 @@ Instantly retrieve past decisions with context:
 ```
 
 ### 🏭 Workshops
+
 Time-bounded, goal-oriented collaboration sessions with mandatory outcomes.
 
 ### 📄 Living Documents
+
 Structured papers that link to decisions, discussions, and files.
 
 ---
@@ -115,12 +120,12 @@ Structured papers that link to decisions, discussions, and files.
 
 The intelligence engine uses mathematical foundations from neural network theory — but implemented as **pure deterministic algorithms**. No models, no training, no black boxes.
 
-| Concept | Implementation |
-|---------|----------------|
-| Weighted Sums | `z = Σ(signal × weight)` |
-| Sigmoid Activation | `σ(z) = 1/(1+e^(-k(z-θ)))` |
-| Hebbian Learning | `Δw = η × signal × outcome` |
-| Exponential Decay | `w(t) = w₀×e^(-λt) + base×(1-e^(-λt))` |
+| Concept            | Implementation                         |
+| ------------------ | -------------------------------------- |
+| Weighted Sums      | `z = Σ(signal × weight)`               |
+| Sigmoid Activation | `σ(z) = 1/(1+e^(-k(z-θ)))`             |
+| Hebbian Learning   | `Δw = η × signal × outcome`            |
+| Exponential Decay  | `w(t) = w₀×e^(-λt) + base×(1-e^(-λt))` |
 
 **Every decision is 100% traceable and explainable.**
 
@@ -128,13 +133,13 @@ The intelligence engine uses mathematical foundations from neural network theory
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Backend** | Node.js + TypeScript + Express + Socket.io |
-| **Database** | PostgreSQL 14+ |
-| **Cache/RT** | Redis 7+ |
-| **Frontend** | React + Vite + TypeScript |
-| **CLI** | Node.js + Commander.js |
+| Layer        | Technology                                 |
+| ------------ | ------------------------------------------ |
+| **Backend**  | Node.js + TypeScript + Express + Socket.io |
+| **Database** | PostgreSQL 14+                             |
+| **Cache/RT** | Redis 7+                                   |
+| **Frontend** | React + Vite + TypeScript                  |
+| **CLI**      | Node.js + Commander.js                     |
 
 ---
 
@@ -168,11 +173,11 @@ npm run dev
 
 ### Access Points
 
-| Service | URL |
-|---------|-----|
-| Web App | http://localhost:5173 |
-| API | http://localhost:3000 |
-| WebSocket | ws://localhost:3000 |
+| Service   | URL                   |
+| --------- | --------------------- |
+| Web App   | http://localhost:5173 |
+| API       | http://localhost:3000 |
+| WebSocket | ws://localhost:3000   |
 
 ---
 
@@ -182,17 +187,19 @@ npm run dev
 sentry/
 ├── packages/
 │   ├── backend/          # Express API + Neural Hub
-│   ├── frontend/         # React web application
+│   ├── web/              # React web application (renamed from frontend)
 │   ├── cli/              # Command-line tool
 │   └── shared/           # Shared types & utilities
 ├── database/
 │   └── migrations/       # SQL migration files
-├── docker/
-│   └── docker-compose.yml
+├── docker-compose.yml    # Infrastructure setup
 ├── docs/
 │   ├── DEVELOPMENT.md    # Development guide
 │   ├── API.md            # API documentation
-│   └── ARCHITECTURE.md   # Detailed architecture
+│   ├── ARCHITECTURE.md   # Detailed architecture
+│   ├── USER_GUIDE.md     # End-user documentation
+│   └── DEPLOYMENT.md     # Production deployment guide
+├── figma-mcp-server/     # Figma MCP integration server
 └── README.md
 ```
 
@@ -200,22 +207,25 @@ sentry/
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Setup, development workflow, contribution guide |
-| [API.md](./docs/API.md) | REST & WebSocket API reference |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Detailed system architecture |
+| Document                                  | Description                                           |
+| ----------------------------------------- | ----------------------------------------------------- |
+| [DEVELOPMENT.md](./docs/DEVELOPMENT.md)   | Setup, development workflow, contribution guide       |
+| [API.md](./docs/API.md)                   | REST & WebSocket API reference                        |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Detailed system architecture                          |
+| [NEURAL_HUB.md](./docs/NEURAL_HUB.md)     | Complete Neural Hub intelligence engine documentation |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment guide                           |
+| [USER_GUIDE.md](./docs/USER_GUIDE.md)     | End-user documentation                                |
 
 ---
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| Neural Hub per-message | < 1ms |
-| API p95 response | < 100ms |
-| WebSocket latency | < 30ms |
-| Decision detection F1 | > 0.75 |
+| Metric                 | Target  |
+| ---------------------- | ------- |
+| Neural Hub per-message | < 1ms   |
+| API p95 response       | < 100ms |
+| WebSocket latency      | < 30ms  |
+| Decision detection F1  | > 0.75  |
 
 ---
 

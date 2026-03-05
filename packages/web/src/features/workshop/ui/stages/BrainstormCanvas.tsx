@@ -1,5 +1,3 @@
-'use client';
-
 import { motion } from 'framer-motion';
 import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
 import { addIdea, updateIdea } from '../../../../store/slices/workshopSlice';

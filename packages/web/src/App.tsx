@@ -1,27 +1,32 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, lazy, Suspense } from 'react';
-import { useAppSelector, useAppDispatch } from './store/hooks';
-import { fetchCurrentUser } from './store/slices/authSlice';
-import { connectSocket } from './lib/socket';
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, lazy, Suspense } from "react";
+import { useAppSelector, useAppDispatch } from "./store/hooks";
+import { fetchCurrentUser } from "./store/slices/authSlice";
+import { connectSocket } from "./lib/socket";
 
 // Layouts
-import { DashboardLayout, AuthLayout } from './app/layouts';
+import { DashboardLayout, AuthLayout } from "./app/layouts";
 
 // Lazy-loaded pages (Code splitting per AGENT_INSTRUCTIONS)
-const LoginPage = lazy(() => import('./features/auth/LoginPage'));
-const RegisterPage = lazy(() => import('./features/auth/RegisterPage'));
-const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage'));
-const ChatPage = lazy(() => import('./features/chat/ui/ChatWindow'));
+const LoginPage = lazy(() => import("./features/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./features/auth/RegisterPage"));
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
+const ChatPage = lazy(() => import("./features/chat/ui/ChatWindow"));
 
-// Placeholder pages (to be implemented in later phases)
-const ProjectsPage = lazy(() => import('./features/placeholder/PlaceholderPage').then(m => ({ default: () => <m.default title="Projects" /> })));
-const DecisionsPage = lazy(() => import('./features/placeholder/PlaceholderPage').then(m => ({ default: () => <m.default title="Decisions" /> })));
-const DocumentsPage = lazy(() => import('./features/documents/DocumentsPage'));
-const WorkshopPage = lazy(() => import('./features/workshop/ui/WorkshopLiveSession'));
-const ChannelsPage = lazy(() => import('./features/channels/ChannelsPage'));
-const ChannelChatWindow = lazy(() => import('./features/channels/ChannelChatWindow'));
-const ActivityFeed = lazy(() => import('./features/feed/ui/ActivityFeed'));
-const SettingsPage = lazy(() => import('./features/placeholder/PlaceholderPage').then(m => ({ default: () => <m.default title="Settings" /> })));
+// Real pages
+const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
+const DecisionsPage = lazy(() => import("./features/decisions/DecisionsPage"));
+const DocumentsPage = lazy(() => import("./features/documents/DocumentsPage"));
+const WorkshopPage = lazy(
+  () => import("./features/workshop/ui/WorkshopLiveSession"),
+);
+const ChannelsPage = lazy(() => import("./features/channels/ChannelsPage"));
+const ChannelChatWindow = lazy(
+  () => import("./features/channels/ChannelChatWindow"),
+);
+const ActivityFeed = lazy(() => import("./features/feed/ui/ActivityFeed"));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const UserProfilePage = lazy(() => import("./features/user/ui/UserProfile"));
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Loading Fallback
@@ -99,6 +104,7 @@ export default function App() {
           </Route>
           <Route path="/feed" element={<ActivityFeed />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<UserProfilePage />} />
         </Route>
 
         {/* Fallback */}
