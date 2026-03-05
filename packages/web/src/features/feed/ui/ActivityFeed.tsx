@@ -154,6 +154,7 @@ export function ActivityFeed() {
 
       {/* Feed List */}
       <div className="flex-1 overflow-y-auto">
+        {activities.length === 0 ? (
           <div className="my-8">
             <EmptyState
               icon={Radio}
