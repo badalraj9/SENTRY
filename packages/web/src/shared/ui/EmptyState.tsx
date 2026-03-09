@@ -13,7 +13,6 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon: Icon,
   title,
   description,
   actionLabel,
@@ -23,29 +22,32 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "w-full h-full flex items-center justify-center p-6",
+        "w-full h-full flex items-center justify-center p-6 bg-transparent",
         className,
       )}
     >
-      <div className="flex flex-col items-center text-center max-w-sm">
-        {Icon && (
-          <div className="w-16 h-16 rounded-full bg-terminal-900 border border-terminal-800 flex items-center justify-center mb-6">
-            <Icon size={32} className="text-terminal-500" />
-          </div>
-        )}
+      <div className="flex flex-col items-center text-center max-w-md border border-neutral-200 border-dashed rounded-3xl bg-white p-12">
+        <div className="text-[120px] font-mono text-neutral-200 mb-8 leading-none select-none">
+          #
+        </div>
 
-        <h3 className="text-lg font-medium text-terminal-200 mb-2">{title}</h3>
+        <h3 className="text-[32px] font-header font-bold tracking-tighter leading-none text-black uppercase mb-4">
+          {title}
+        </h3>
 
         {description && (
-          <p className="text-sm text-terminal-500 mb-6 text-balance">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mb-8 leading-relaxed max-w-sm mt-2">
             {description}
           </p>
         )}
 
         {actionLabel && onAction && (
-          <Button variant="primary" onClick={onAction}>
-            {actionLabel}
-          </Button>
+          <button
+            className="btn-brutal py-4 px-8 text-[11px] tracking-[0.15em] rounded-full hover:scale-[0.98] active:scale-95 transition-all ease-mechanical duration-150"
+            onClick={onAction}
+          >
+            [{actionLabel}]
+          </button>
         )}
       </div>
     </div>

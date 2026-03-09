@@ -30,6 +30,10 @@ const createMessageSchema = z.object({
   replyTo: uuidSchema.optional(),
 });
 
+const addMemberSchema = z.object({
+  userId: uuidSchema,
+});
+
 const createIntentSchema = z.object({
   statement: z.string().min(1).max(500),
 });
@@ -160,6 +164,47 @@ chatRouter.post(
     });
 
     res.status(201).json(message);
+  }
+);
+
+/**
+ * POST /chats/:id/members
+ * Add member to chat
+ */
+chatRouter.post(
+  '/:id/members',
+  validateParams(z.object({ id: uuidSchema })),
+  validateBody(addMemberSchema),
+  async (req, res) => {
+    const chat = await chatService.getChatById(req.params.id);
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+
+    const participant = await chatService.addChatParticipant(req.params.id, req.body.userId);
+    res.status(201).json(participant);
+  }
+);
+
+/**
+ * GET /chats/:id/members
+ * Get chat members
+ */
+chatRouter.get('/:id/members', validateParams(z.object({ id: uuidSchema })), async (req, res) => {
+  const members = await chatService.getChatParticipants(req.params.id);
+  res.json(members);
+});
+
+/**
+ * GET /chats/:id/messages/:messageId/thread
+ * Get thread replies for a message
+ */
+chatRouter.get(
+  '/:id/messages/:messageId/thread',
+  validateParams(z.object({ id: uuidSchema, messageId: uuidSchema })),
+  async (req, res) => {
+    const messages = await messageService.getThreadMessages(req.params.messageId);
+    res.json(messages);
   }
 );
 

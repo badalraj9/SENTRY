@@ -29,7 +29,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string(),
 });
 
@@ -87,9 +87,9 @@ authRouter.post("/register", validateBody(registerSchema), async (req, res) => {
  */
 authRouter.post("/login", validateBody(loginSchema), async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    const user = await userService.validateCredentials(email, password);
+    const user = await userService.validateCredentials(identifier, password);
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }

@@ -9,15 +9,19 @@ const { Pool } = pg;
 
 // Determine SSL config based on environment
 const isProduction = process.env.NODE_ENV === "production";
-const sslConfig = config.database.url.includes("localhost")
-  ? false
-  : { rejectUnauthorized: isProduction };
+const isLocalDb = config.database.url.includes("localhost");
+const sslConfig = isLocalDb 
+  ? false 
+  : { 
+      rejectUnauthorized: false,
+      sslmode: "require"
+    };
 
 export const pool = new Pool({
   connectionString: config.database.url,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
   ssl: sslConfig,
 });
 

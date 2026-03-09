@@ -20,3 +20,5 @@ export { TerminalBorder } from "./TerminalBorder";
 export { TerminalHeader } from "./TerminalHeader";
 export { TerminalFooter } from "./TerminalFooter";
 export { SystemLog, type LogMessage } from "./SystemLog";
+export { GlassButton } from "./GlassButton";
+export { LiquidTabs } from "./LiquidTabs";

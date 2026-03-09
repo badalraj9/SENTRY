@@ -1,281 +1,438 @@
-import * as React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAppSelector } from '../../store/hooks';
-import { useNavigate } from 'react-router-dom';
+import * as React from "react";
+import { useState, useEffect } from "react";
+import { useAppSelector } from "../../store/hooks";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  User,
+  Settings,
+  Shield,
+  Bell,
+  Palette,
+  Key,
+  LogOut,
+  ChevronRight,
+  Terminal,
+  Save,
+} from "lucide-react";
+import { cn } from "../../shared/lib/utils";
+import { GlassButton } from "../../shared/ui";
 
-interface LogEntry {
+type SettingsSection = "profile" | "preferences" | "security" | "notifications";
+
+interface SettingsItem {
   id: string;
-  text: string;
-  type: 'info' | 'success' | 'error' | 'warning' | 'header' | 'divider' | 'setting';
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  section: SettingsSection;
 }
 
-let globalKeyCounter = 0;
-const generateKey = () => `log-${++globalKeyCounter}-${Date.now()}`;
+const SETTINGS_ITEMS: SettingsItem[] = [
+  {
+    id: "profile",
+    label: "Profile",
+    description: "Manage your account information",
+    icon: User,
+    section: "profile",
+  },
+  {
+    id: "preferences",
+    label: "Preferences",
+    description: "Customize your experience",
+    icon: Settings,
+    section: "preferences",
+  },
+  {
+    id: "security",
+    label: "Security",
+    description: "Password and authentication",
+    icon: Shield,
+    section: "security",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    description: "Email and push notifications",
+    icon: Bell,
+    section: "notifications",
+  },
+];
 
 export default function SettingsPage() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const [command, setCommand] = useState('');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [activeSection, setActiveSection] = useState<'menu' | 'profile' | 'preferences' | 'security'>('menu');
-  const [isBooting, setIsBooting] = useState(true);
-  const bootStarted = useRef(false);
-  const navigate = useNavigate();
-
   const { user } = useAppSelector((state) => state.auth);
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>("profile");
 
-  // Boot sequence
-  useEffect(() => {
-    if (bootStarted.current) return;
-    bootStarted.current = true;
+  return (
+    <div className="h-full w-full bg-transparent flex flex-col md:flex-row overflow-hidden p-6 gap-6">
+      {/* LEFT COLUMN: Navigation (50%) */}
+      <div className="w-full md:w-1/2 border border-neutral-200 border-b-[3px] rounded-3xl bg-white flex flex-col overflow-hidden shrink-0 shadow-sm transition-all duration-150">
+        <div className="p-12 border-b border-neutral-200 border-dashed bg-transparent">
+          <h2 className="text-[48px] font-header font-bold tracking-tighter leading-none text-black mb-4 uppercase">
+            Settings
+          </h2>
+          <p className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+            System Configuration
+          </p>
+        </div>
 
-    const bootSequence: LogEntry[] = [
-      { id: generateKey(), text: 'SENTRY_OS v4.0.2 [SYSTEM SETTINGS]', type: 'header' },
-      { id: generateKey(), text: '═══════════════════════════════════════════════════════', type: 'divider' },
-      { id: generateKey(), text: 'INIT: LOADING CONFIGURATION MODULE...', type: 'info' },
-      { id: generateKey(), text: '✓ SETTINGS ENGINE ONLINE', type: 'success' },
-      { id: generateKey(), text: '', type: 'info' },
-      { id: generateKey(), text: '── SETTINGS MENU ──────────────────────────────────────', type: 'divider' },
-      { id: generateKey(), text: '  [1] Profile          → Edit user profile', type: 'setting' },
-      { id: generateKey(), text: '  [2] Preferences      → Assistant preferences', type: 'setting' },
-      { id: generateKey(), text: '  [3] Security         → Security settings', type: 'setting' },
-      { id: generateKey(), text: '  [4] Back             → Return to dashboard', type: 'setting' },
-      { id: generateKey(), text: '', type: 'info' },
-    ];
+        <div className="flex-1 overflow-y-auto flex flex-col bg-transparent">
+          {SETTINGS_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.section)}
+              className={cn(
+                "w-full flex items-center justify-between p-8 border-b border-neutral-200 border-dashed transition-colors group outline-none",
+                activeSection === item.section
+                  ? "bg-neutral-50 text-black"
+                  : "bg-transparent hover:bg-neutral-50/50 text-neutral-500",
+              )}
+            >
+              <div className="flex items-center gap-6">
+                <item.icon
+                  className={cn(
+                    "w-6 h-6 transition-colors",
+                    activeSection === item.section
+                      ? "text-black"
+                      : "text-neutral-500 group-hover:text-black",
+                  )}
+                />
+                <div className="text-left flex flex-col gap-1">
+                  <span
+                    className={cn(
+                      "font-sans text-[15px] tracking-wide font-medium transition-colors",
+                      activeSection === item.section
+                        ? "text-black"
+                        : "text-neutral-600",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] tracking-[0.1em] font-mono uppercase transition-colors",
+                      activeSection === item.section
+                        ? "text-neutral-500"
+                        : "text-neutral-400",
+                    )}
+                  >
+                    {item.description}
+                  </span>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center group-hover:bg-neutral-200 transition-colors">
+                <ChevronRight
+                  className={cn(
+                    "w-4 h-4 transition-transform",
+                    activeSection === item.section
+                      ? "text-black"
+                      : "text-neutral-500 group-hover:text-black group-hover:translate-x-1",
+                  )}
+                />
+              </div>
+            </button>
+          ))}
+        </div>
 
-    setLogs(bootSequence);
-    
-    const timer = setTimeout(() => {
-      setIsBooting(false);
-      inputRef.current?.focus();
-    }, 400);
-    
-    return () => clearTimeout(timer);
-  }, []);
+        <div className="p-8 border-t border-neutral-200 border-dashed bg-transparent">
+          <button className="w-full btn-brutal border-[#D33E33]/30 hover:border-[#D33E33] text-[#D33E33] hover:bg-[#D33E33]/10 flex items-center justify-center gap-3 py-4 border-dashed rounded-full transition-colors bg-white">
+            <LogOut className="w-4 h-4" />
+            <span className="text-[11px] tracking-[0.15em] font-mono uppercase">
+              Sign Out
+            </span>
+          </button>
+        </div>
+      </div>
 
-  // Auto-scroll
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+      {/* RIGHT COLUMN: Content (50%) */}
+      <div className="flex-1 border border-neutral-200 border-b-[3px] rounded-3xl bg-white flex flex-col overflow-y-auto shadow-sm transition-all duration-150">
+        <div className="p-12">
+          {activeSection === "profile" && <ProfileSection user={user} />}
+          {activeSection === "preferences" && <PreferencesSection />}
+          {activeSection === "security" && <SecuritySection />}
+          {activeSection === "notifications" && <NotificationsSection />}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const handleCommand = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter' || !command.trim()) return;
+function ProfileSection({ user }: { user: any }) {
+  const [handle, setHandle] = useState(user?.handle || "");
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [isSaving, setIsSaving] = useState(false);
 
-    const cmdText = command;
-    const cmd = command.toLowerCase().trim();
-    setCommand('');
-    
-    const newLogs: LogEntry[] = [
-      { id: generateKey(), text: `sys> ${cmdText}`, type: 'info' }
-    ];
-
-    if (cmd === 'help' || cmd === '?') {
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── AVAILABLE COMMANDS ────────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: '  1, profile       → Edit user profile', type: 'info' },
-        { id: generateKey(), text: '  2, preferences   → Assistant preferences', type: 'info' },
-        { id: generateKey(), text: '  3, security      → Security settings', type: 'info' },
-        { id: generateKey(), text: '  4, back          → Return to dashboard', type: 'info' },
-        { id: generateKey(), text: '  menu             → Show main menu', type: 'info' },
-        { id: generateKey(), text: '  clear            → Clear terminal', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else if (cmd === '1' || cmd === 'profile') {
-      setActiveSection('profile');
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── USER PROFILE ───────────────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: `  HANDLE:    ${user?.handle || 'N/A'}`, type: 'info' },
-        { id: generateKey(), text: `  EMAIL:     ${user?.email || 'N/A'}`, type: 'info' },
-        { id: generateKey(), text: `  DISPLAY:   ${user?.displayName || 'N/A'}`, type: 'info' },
-        { id: generateKey(), text: `  VISIBILITY: public`, type: 'info' },
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '  Commands:', type: 'info' },
-        { id: generateKey(), text: '    edit    → Edit profile', type: 'info' },
-        { id: generateKey(), text: '    menu    → Back to menu', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else if (cmd === '2' || cmd === 'preferences') {
-      setActiveSection('preferences');
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── ASSISTANT PREFERENCES ──────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: '  Configure AI assistant behavior:', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '  [1] Verbosity      → quiet | balanced | verbose', type: 'setting' },
-        { id: generateKey(), text: '  [2] Early Capture  → Enable/disable', type: 'setting' },
-        { id: generateKey(), text: '  [3] Concise Mode   → Enable/disable', type: 'setting' },
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '  Commands:', type: 'info' },
-        { id: generateKey(), text: '    menu    → Back to menu', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else if (cmd === '3' || cmd === 'security') {
-      setActiveSection('security');
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── SECURITY SETTINGS ──────────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: '  Security configuration:', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '  [1] Change Password', type: 'setting' },
-        { id: generateKey(), text: '  [2] Two-Factor Auth', type: 'setting' },
-        { id: generateKey(), text: '  [3] API Tokens', type: 'setting' },
-        { id: generateKey(), text: '  [4] Session Management', type: 'setting' },
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '  Commands:', type: 'info' },
-        { id: generateKey(), text: '    menu    → Back to menu', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else if (cmd === '4' || cmd === 'back' || cmd === 'dashboard') {
-      newLogs.push({ id: generateKey(), text: '→ RETURNING TO COMMAND CENTER...', type: 'success' });
-      setLogs(prev => [...prev, ...newLogs]);
-      setTimeout(() => navigate('/'), 300);
-      return;
-    } else if (cmd === 'menu') {
-      setActiveSection('menu');
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── SETTINGS MENU ──────────────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: '  [1] Profile          → Edit user profile', type: 'setting' },
-        { id: generateKey(), text: '  [2] Preferences      → Assistant preferences', type: 'setting' },
-        { id: generateKey(), text: '  [3] Security         → Security settings', type: 'setting' },
-        { id: generateKey(), text: '  [4] Back             → Return to dashboard', type: 'setting' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else if (cmd === 'clear') {
-      setLogs([]);
-      setActiveSection('menu');
-      return;
-    } else if (cmd === 'edit' && activeSection === 'profile') {
-      newLogs.push(
-        { id: generateKey(), text: '', type: 'info' },
-        { id: generateKey(), text: '── EDIT PROFILE ───────────────────────────────────────', type: 'divider' },
-        { id: generateKey(), text: '  Use the web form below to edit your profile.', type: 'info' },
-        { id: generateKey(), text: '', type: 'info' }
-      );
-    } else {
-      newLogs.push({ id: generateKey(), text: `ERR: UNKNOWN COMMAND "${cmd}"`, type: 'error' });
-    }
-    
-    setLogs(prev => [...prev, ...newLogs]);
-  }, [command, user, activeSection, navigate]);
-
-  const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'success': return 'text-emerald-400';
-      case 'error': return 'text-red-400';
-      case 'warning': return 'text-amber-400';
-      case 'header': return 'text-emerald-400 font-bold';
-      case 'divider': return 'text-terminal-600';
-      case 'setting': return 'text-cyan-400';
-      default: return 'text-terminal-400';
-    }
+  const handleSave = async () => {
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 500));
+    setIsSaving(false);
   };
 
   return (
-    <div className="h-full w-full bg-terminal-950 text-terminal-300 font-mono text-sm overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-terminal-500">
-          <span>⚙</span>
-          <span className="text-xs uppercase tracking-wider">SYSTEM SETTINGS</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-terminal-600 text-xs">
-            {user?.handle || 'guest'}
-          </span>
-        </div>
+    <div className="flex flex-col h-full max-w-2xl">
+      <div className="mb-12 border-b border-neutral-200 border-dashed pb-8 flex flex-col gap-4">
+        <h3 className="text-[32px] font-header font-bold tracking-tighter leading-none text-black uppercase mt-2">
+          Profile Information
+        </h3>
+        <p className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+          Identity Parameters
+        </p>
       </div>
 
-      {/* Terminal Content */}
-      <div className="flex-1 p-6 overflow-y-auto" onClick={() => inputRef.current?.focus()}>
-        <div className="max-w-4xl mx-auto">
-          {/* Logs */}
-          <div className="space-y-0.5">
-            {logs.filter(Boolean).map((log) => (
-              <div key={log.id} className={getLogColor(log.type)}>
-                {log.text || '\u00A0'}
-              </div>
-            ))}
-            <div ref={logsEndRef} />
+      <div className="space-y-10">
+        <div>
+          <label className="block text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500 mb-3">
+            Display Name
+          </label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="input-brutal w-full text-lg py-4 rounded-full"
+            placeholder="OPERATOR NAME"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500 mb-3">
+            System Handle
+          </label>
+          <div className="flex relative">
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm pointer-events-none">
+              @
+            </span>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              className="input-brutal w-full text-lg py-4 pl-12 rounded-full"
+              placeholder="handle"
+            />
           </div>
+        </div>
 
-          {/* Profile Edit Form */}
-          {activeSection === 'profile' && (
-            <div className="mt-4 border border-terminal-800 p-4 bg-terminal-900/30">
-              <h3 className="text-xs text-terminal-500 mb-3 uppercase">Edit Profile</h3>
-              <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); setLogs(prev => [...prev, { id: generateKey(), text: '✓ PROFILE UPDATED', type: 'success' }]); }}>
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">DISPLAY NAME</label>
-                  <input type="text" defaultValue={user?.displayName || ''}
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none"
-                    placeholder="Display name" />
-                </div>
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">BIO</label>
-                  <textarea rows={2}
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none resize-none"
-                    placeholder="Brief bio..." />
-                </div>
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">VISIBILITY</label>
-                  <select defaultValue="public"
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none">
-                    <option value="public">public</option>
-                    <option value="limited">limited</option>
-                    <option value="private">private</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="submit" className="px-4 py-1.5 bg-emerald-600 text-terminal-950 text-xs hover:bg-emerald-500">
-                    SAVE
-                  </button>
-                  <button type="button" onClick={() => setActiveSection('menu')}
-                    className="px-4 py-1.5 border border-terminal-700 text-xs hover:bg-terminal-800">
-                    CANCEL
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+        <div>
+          <label className="block text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500 mb-3">
+            Secure Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input-brutal w-full text-lg py-4 rounded-full"
+            placeholder="email@sentry.os"
+          />
+        </div>
 
-          {/* Command Input */}
-          {!isBooting && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-terminal-500">sys&gt;</span>
-              <div className="relative flex-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  onKeyDown={handleCommand}
-                  className="bg-transparent border-none outline-none w-full text-terminal-100"
-                  placeholder="Type 'help' for commands..."
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <div className="absolute top-0 h-5 w-2 bg-emerald-500 pointer-events-none animate-pulse"
-                  style={{ left: `${command.length * 9.6}px` }} />
-              </div>
-            </div>
-          )}
-
-          {/* Booting indicator */}
-          {isBooting && (
-            <div className="mt-4 flex items-center gap-2 text-emerald-400 animate-pulse">
-              <span>⟳</span>
-              <span>LOADING MODULE...</span>
-            </div>
-          )}
+        <div className="pt-12 mt-auto">
+          <GlassButton
+            onClick={handleSave}
+            disabled={isSaving}
+            size="md"
+            className="w-full mt-4"
+          >
+            {isSaving ? "[ SAVING DIRECTIVES... ]" : "[ COMMIT CHANGES ]"}
+          </GlassButton>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Footer */}
-      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
-        SENTRY COLLABORATIVE OS • TYPE "help" FOR COMMANDS
+function PreferencesSection() {
+  const [verboseMode, setVerboseMode] = useState(false);
+  const [conciseMode, setConciseMode] = useState(true);
+  const [earlyCapture, setEarlyCapture] = useState(true);
+
+  return (
+    <div className="flex flex-col h-full max-w-2xl">
+      <div className="mb-12 border-b border-neutral-200 border-dashed pb-8 flex flex-col gap-4">
+        <h3 className="text-[32px] font-header font-bold tracking-tighter leading-none text-black uppercase mt-2">
+          System Preferences
+        </h3>
+        <p className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+          Client Configuration
+        </p>
+      </div>
+
+      <div className="space-y-0 border border-neutral-200 border-b-[3px] rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-150">
+        <PrefToggle
+          label="CONCISE MODE"
+          desc="SHORTER AI FORMAT"
+          value={conciseMode}
+          onChange={() => setConciseMode(!conciseMode)}
+          isFirst
+        />
+        <PrefToggle
+          label="VERBOSE MODE"
+          desc="DETAILED AI LOGS"
+          value={verboseMode}
+          onChange={() => setVerboseMode(!verboseMode)}
+        />
+        <PrefToggle
+          label="EARLY CAPTURE"
+          desc="PRE-FETCH CONTEXT"
+          value={earlyCapture}
+          onChange={() => setEarlyCapture(!earlyCapture)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PrefToggle({
+  label,
+  desc,
+  value,
+  onChange,
+  isFirst = false,
+}: {
+  label: string;
+  desc: string;
+  value: boolean;
+  onChange: () => void;
+  isFirst?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col sm:flex-row sm:items-center justify-between p-8 hover:bg-neutral-50 transition-colors",
+        !isFirst && "border-t border-neutral-200 border-dashed",
+      )}
+    >
+      <div className="mb-4 sm:mb-0">
+        <div className="font-sans text-[15px] tracking-wide font-medium text-black mb-2">
+          {label}
+        </div>
+        <div className="text-[10px] tracking-[0.1em] text-neutral-500 font-mono uppercase">
+          {desc}
+        </div>
+      </div>
+      <button
+        onClick={onChange}
+        className={cn(
+          "w-14 h-7 border border-dashed transition-colors outline-none relative group rounded-full",
+          value
+            ? "border-emerald-500 bg-emerald-500/10"
+            : "border-neutral-300 bg-white hover:border-neutral-400",
+        )}
+      >
+        <div
+          className={cn(
+            "absolute top-[3px] w-5 h-5 transition-all rounded-full duration-150 ease-mechanical",
+            value
+              ? "left-[30px] bg-emerald-500"
+              : "left-[3px] bg-neutral-300 group-hover:bg-neutral-400",
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SecuritySection() {
+  const [twoFactor, setTwoFactor] = useState(false);
+
+  return (
+    <div className="flex flex-col h-full max-w-2xl">
+      <div className="mb-12 border-b border-neutral-200 border-dashed pb-8 flex flex-col gap-4">
+        <h3 className="text-[32px] font-header font-bold tracking-tighter leading-none text-black uppercase mt-2">
+          Security Controls
+        </h3>
+        <p className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+          Access & Authenticaton
+        </p>
+      </div>
+
+      <div className="space-y-0 border border-neutral-200 border-b-[3px] shadow-sm rounded-3xl bg-white overflow-hidden transition-all duration-150">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-8 border-b border-neutral-200 border-dashed">
+          <div className="mb-4 sm:mb-0 flex items-center gap-6">
+            <Key className="w-5 h-5 text-neutral-500" />
+            <div className="flex flex-col gap-2">
+              <div className="font-sans text-[15px] font-medium text-black">
+                Password
+              </div>
+              <div className="text-[10px] tracking-[0.1em] text-neutral-500 font-mono uppercase">
+                LAST CHANGED 30 DAYS AGO
+              </div>
+            </div>
+          </div>
+          <GlassButton size="sm">[ UPDATE ]</GlassButton>
+        </div>
+
+        <PrefToggle
+          label="2-FACTOR AUTH"
+          desc="ENHANCE ACCOUNT SECURITY"
+          value={twoFactor}
+          onChange={() => setTwoFactor(!twoFactor)}
+          isFirst
+        />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-8 border-t border-neutral-200 border-dashed">
+          <div className="mb-4 sm:mb-0 flex items-center gap-6">
+            <LogOut className="w-5 h-5 text-neutral-500" />
+            <div className="flex flex-col gap-2">
+              <div className="font-sans text-[15px] font-medium text-black">
+                Active Sessions
+              </div>
+              <div className="text-[10px] tracking-[0.1em] text-neutral-500 font-mono uppercase">
+                MANAGE LOGIN TOKENS
+              </div>
+            </div>
+          </div>
+          <GlassButton size="sm" variant="danger">
+            [ TERMINATE ALL ]
+          </GlassButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotificationsSection() {
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [pushNotifs, setPushNotifs] = useState(false);
+  const [workshopNotifs, setWorkshopNotifs] = useState(true);
+  const [decisionNotifs, setDecisionNotifs] = useState(true);
+
+  return (
+    <div className="flex flex-col h-full max-w-2xl">
+      <div className="mb-12 border-b border-neutral-200 border-dashed pb-8 flex flex-col gap-4">
+        <h3 className="text-[32px] font-header font-bold tracking-tighter leading-none text-black uppercase mt-2">
+          Comms Array
+        </h3>
+        <p className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+          Alert Routing Protocols
+        </p>
+      </div>
+
+      <div className="space-y-0 border border-neutral-200 border-b-[3px] shadow-sm bg-white rounded-3xl overflow-hidden transition-all duration-150">
+        <PrefToggle
+          label="EMAIL RELAY"
+          desc="EXTERNAL MESSAGING"
+          value={emailNotifs}
+          onChange={() => setEmailNotifs(!emailNotifs)}
+          isFirst
+        />
+        <PrefToggle
+          label="PUSH OVERRIDES"
+          desc="BROWSER ALERTS"
+          value={pushNotifs}
+          onChange={() => setPushNotifs(!pushNotifs)}
+        />
+        <PrefToggle
+          label="WORKSHOP PINGS"
+          desc="SYNC SESSIONS"
+          value={workshopNotifs}
+          onChange={() => setWorkshopNotifs(!workshopNotifs)}
+        />
+        <PrefToggle
+          label="DECISION PINGS"
+          desc="COMMIT NOTIFICATIONS"
+          value={decisionNotifs}
+          onChange={() => setDecisionNotifs(!decisionNotifs)}
+        />
       </div>
     </div>
   );

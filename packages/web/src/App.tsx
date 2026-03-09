@@ -73,43 +73,47 @@ export default function App() {
   }, [token, isAuthenticated, dispatch]);
 
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        {/* Auth Routes */}
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Route>
-
-        {/* Protected App Routes */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/messages" element={<ChatPage />} />
-          <Route path="/messages/:chatId" element={<ChatPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/p/:projectId/*" element={<ProjectsPage />} />
-          <Route path="/decisions" element={<DecisionsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/documents/:docId" element={<DocumentsPage />} />
-          <Route path="/workshops" element={<WorkshopPage />} />
-          <Route path="/workshops/:workshopId" element={<WorkshopPage />} />
-          <Route path="/channels" element={<ChannelsPage />}>
-            <Route path=":channelId" element={<ChannelChatWindow />} />
+    <>
+      {/* Background is handled globally via body radial-gradient in index.css */}
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Auth Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Route>
-          <Route path="/feed" element={<ActivityFeed />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/profile" element={<UserProfilePage />} />
-        </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+          {/* Protected App Routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/messages" element={<ChannelsPage />}>
+              <Route path=":channelId" element={<ChannelChatWindow />} />
+            </Route>
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/p/:projectId/*" element={<ProjectsPage />} />
+            <Route path="/decisions" element={<DecisionsPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/:docId" element={<DocumentsPage />} />
+            <Route path="/workshops" element={<WorkshopPage />} />
+            <Route path="/workshops/:workshopId" element={<WorkshopPage />} />
+            <Route path="/channels" element={<ChannelsPage />}>
+              <Route path=":channelId" element={<ChannelChatWindow />} />
+            </Route>
+            <Route path="/feed" element={<ActivityFeed />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<UserProfilePage />} />
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Save,
@@ -8,27 +8,26 @@ import {
   FileText,
   Clock,
   User,
-  Terminal,
-  Shield,
-  Loader2,
+  Plus,
+  Search,
+  ChevronRight,
+  X,
 } from "lucide-react";
 import { DocEditor } from "../editor";
-// import { cn } from '../../shared/lib/utils';
-import { Button, EmptyState } from "../../shared/ui";
+import { Button, EmptyState, GlassButton } from "../../shared/ui";
 import {
   useGetDocumentsQuery,
   useGetProjectsQuery,
+  useCreateDocumentMutation,
 } from "../../shared/api/apiSlice";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "../../shared/lib/utils";
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Documents Page
-   Document list + editor view
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-interface LogEntry {
+interface ProjectDoc {
   id: string;
-  text: string;
-  type: "info" | "success" | "error" | "warning" | "header" | "divider";
+  title: string;
+  updatedAt?: string;
+  createdBy?: string;
 }
 
 const SAMPLE_CONTENT = `
@@ -38,55 +37,28 @@ const SAMPLE_CONTENT = `
 <h2>System Design</h2>
 <p>Our system follows a <strong>modular, feature-sliced architecture</strong> that promotes scalability and maintainability.</p>
 
-<p>Key principles:</p>
-<ul>
-<li>Component isolation and reusability</li>
-<li>Clear separation of concerns</li>
-<li>Type-safe data flow</li>
-<li>Real-time synchronization</li>
-</ul>
-
-<h2>Embedded Decisions</h2>
-<p>Below is an embedded decision card that was approved by the team:</p>
-
-<decision-embed id="104" title="Migrate to Rust Bundler" status="approved"></decision-embed>
-
-<p>This decision impacts our build pipeline significantly.</p>
-
 <h2>Next Steps</h2>
-<blockquote>
 <p>We need to finalize the API contract before proceeding with implementation.</p>
-</blockquote>
-
-<p>The following tasks are blocked on this architecture review:</p>
-<ol>
-<li>Backend service implementation</li>
-<li>Frontend component library</li>
-<li>Integration testing suite</li>
-</ol>
 `;
 
 export function DocumentsPage() {
   const { docId } = useParams<{ docId?: string }>();
   const navigate = useNavigate();
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const logsEndRef = React.useRef<HTMLDivElement>(null);
-
-  const [command, setCommand] = React.useState("");
-  const [logs, setLogs] = React.useState<LogEntry[]>([]);
-  const [isBooting, setIsBooting] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [content, setContent] = React.useState(SAMPLE_CONTENT);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
 
-  // Real Data Fetch
   const { data: projects = [] } = useGetProjectsQuery();
-  const activeProjectId = projects[0]?.id || "mock-id";
-  const { data: documents = [], isLoading } = useGetDocumentsQuery(
+  const activeProjectId = projects[0]?.id || "";
+  const { data: documents = [], isLoading: docsLoading } = useGetDocumentsQuery(
     { projectId: activeProjectId },
     { skip: !activeProjectId },
   );
+  const [createDocument, { isLoading: isCreating }] =
+    useCreateDocumentMutation();
 
-  // Mock Fallback if API fails or empty
-  const MOCK_DOCUMENTS = [
+  const MOCK_DOCUMENTS: ProjectDoc[] = [
     {
       id: "1",
       title: "Project Overview",
@@ -113,386 +85,308 @@ export function DocumentsPage() {
     },
   ];
 
-  const displayDocs =
-    documents.length > 0
-      ? documents.map((d) => ({
-          id: d.id,
-          title: d.title,
-          updatedAt: d.updatedAt,
-          createdBy: "You", // Simplified
-        }))
-      : MOCK_DOCUMENTS;
+  const displayDocs: ProjectDoc[] = (
+    documents.length > 0 ? documents : MOCK_DOCUMENTS
+  ).map((d) => ({
+    id: d.id,
+    title: d.title,
+    updatedAt: d.updatedAt,
+    createdBy: (d as ProjectDoc).createdBy || "You",
+  }));
 
-  const [content, setContent] = React.useState(SAMPLE_CONTENT);
-  const [isSaving, setIsSaving] = React.useState(false);
+  const filteredDocs = React.useMemo(() => {
+    if (!searchQuery.trim()) return displayDocs;
+    const query = searchQuery.toLowerCase();
+    return displayDocs.filter((d) => d.title.toLowerCase().includes(query));
+  }, [displayDocs, searchQuery]);
 
   const selectedDoc = docId ? displayDocs.find((d) => d.id === docId) : null;
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate save
     await new Promise((r) => setTimeout(r, 500));
     setIsSaving(false);
-    console.log("Document saved:", content);
   };
 
-  // Track if boot has run
-  const hasBooted = React.useRef(false);
+  const handleCreateDocument = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
+    const docType = formData.get("docType") as string;
 
-  // Boot sequence animation
-  React.useEffect(() => {
-    if (hasBooted.current || docId) return;
-    hasBooted.current = true;
+    if (!title || !activeProjectId) return;
 
-    const filteredCount = searchQuery
-      ? displayDocs.filter((d) =>
-          d.title.toLowerCase().includes(searchQuery.toLowerCase()),
-        ).length
-      : displayDocs.length;
-
-    const bootSequence: LogEntry[] = [
-      { id: "1", text: "SENTRY_OS v4.0.2 [DOCUMENT VAULT]", type: "header" },
-      {
-        id: "2",
-        text: "═══════════════════════════════════════════════════════",
-        type: "divider",
-      },
-      { id: "3", text: "INIT: MOUNTING DOCUMENT REPOSITORY...", type: "info" },
-      {
-        id: "4",
-        text: `✓ LOADED ${displayDocs.length} DOCUMENTS`,
-        type: "success",
-      },
-      { id: "5", text: "✓ INDEX GENERATED", type: "success" },
-      { id: "6", text: "", type: "info" },
-      {
-        id: "7",
-        text: "── DOCUMENT INDEX ────────────────────────────────────",
-        type: "divider",
-      },
-      ...(displayDocs.length > 0
-        ? displayDocs.map((doc, i) => ({
-            id: `${8 + i}`,
-            text: `  [${i + 1}] ${doc.title}`,
-            type: "info" as const,
-          }))
-        : [
-            {
-              id: "empty-doc",
-              text: "  [EMPTY STATE RENDERED]",
-              type: "info" as const,
-            },
-          ]),
-      { id: `${8 + displayDocs.length}`, text: "", type: "info" },
-      {
-        id: `${9 + displayDocs.length}`,
-        text: `TOTAL: ${displayDocs.length} DOCUMENTS`,
-        type: "success",
-      },
-      { id: `${10 + displayDocs.length}`, text: "", type: "info" },
-      {
-        id: `${11 + displayDocs.length}`,
-        text: 'TYPE "open <n>" TO EDIT OR CREATE NEW DOCUMENT',
-        type: "info",
-      },
-      { id: `${12 + displayDocs.length}`, text: "", type: "info" },
-    ];
-
-    let currentIndex = 0;
-    const addNextLog = () => {
-      if (currentIndex < bootSequence.length) {
-        setLogs((prev) => [...prev, bootSequence[currentIndex]]);
-        currentIndex++;
-        setTimeout(addNextLog, 40);
-      } else {
-        setIsBooting(false);
-        inputRef.current?.focus();
-      }
-    };
-    addNextLog();
-  }, [displayDocs.length, docId, searchQuery]);
-
-  // Auto-scroll
-  React.useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  // Handle commands
-  const handleCommand = (e: React.KeyboardEvent) => {
-    if (e.key !== "Enter" || !command.trim()) return;
-
-    const cmd = command.toLowerCase().trim();
-    setLogs((prev) => [
-      ...prev,
-      { id: Date.now().toString(), text: `doc> ${command}`, type: "info" },
-    ]);
-    setCommand("");
-
-    if (cmd === "help" || cmd === "?") {
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + "1", text: "", type: "info" },
-        {
-          id: Date.now() + "2",
-          text: "── AVAILABLE COMMANDS ────────────────────────────────",
-          type: "divider",
-        },
-        {
-          id: Date.now() + "3",
-          text: "  open <n>  → Open document by number",
-          type: "info",
-        },
-        {
-          id: Date.now() + "4",
-          text: "  new       → Create new document",
-          type: "info",
-        },
-        {
-          id: Date.now() + "5",
-          text: "  search    → Search documents",
-          type: "info",
-        },
-        {
-          id: Date.now() + "6",
-          text: "  clear     → Clear terminal",
-          type: "info",
-        },
-        { id: Date.now() + "7", text: "", type: "info" },
-      ]);
-    } else if (cmd.startsWith("open ") || cmd.startsWith("edit ")) {
-      const num = parseInt(cmd.split(" ")[1]) - 1;
-      if (!isNaN(num) && num >= 0 && num < displayDocs.length) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            id: Date.now() + "1",
-            text: `→ OPENING: ${displayDocs[num].title}...`,
-            type: "success",
-          },
-        ]);
-        setTimeout(() => navigate(`/documents/${displayDocs[num].id}`), 300);
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            id: Date.now() + "1",
-            text: `ERR: INVALID DOCUMENT NUMBER`,
-            type: "error",
-          },
-        ]);
-      }
-    } else if (cmd === "new") {
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: Date.now() + "1",
-          text: "→ CREATING NEW DOCUMENT...",
-          type: "success",
-        },
-      ]);
-      setTimeout(() => navigate("/documents/new"), 300);
-    } else if (cmd.startsWith("search ")) {
-      const query = cmd.substring(7);
-      setSearchQuery(query);
-      const results = displayDocs.filter((d) =>
-        d.title.toLowerCase().includes(query.toLowerCase()),
-      );
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: Date.now() + "1",
-          text: `→ SEARCHING FOR: "${query}"`,
-          type: "info",
-        },
-        {
-          id: Date.now() + "2",
-          text: `FOUND ${results.length} MATCHES`,
-          type: results.length > 0 ? "success" : "warning",
-        },
-      ]);
-    } else if (cmd === "clear" || cmd === "cls") {
-      setLogs([]);
-    } else {
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: Date.now() + "1",
-          text: `ERR: UNKNOWN COMMAND "${cmd}"`,
-          type: "error",
-        },
-      ]);
+    try {
+      const result = await createDocument({
+        projectId: activeProjectId,
+        title,
+        description,
+        docType,
+      }).unwrap();
+      setShowCreateModal(false);
+      navigate(`/documents/${result.id}`);
+    } catch (error) {
+      console.error("Failed to create document:", error);
     }
   };
 
-  const getLogColor = (type: LogEntry["type"]) => {
-    switch (type) {
-      case "success":
-        return "text-success";
-      case "error":
-        return "text-error";
-      case "warning":
-        return "text-warning";
-      case "header":
-        return "text-success font-bold";
-      case "divider":
-        return "text-terminal-600";
-      default:
-        return "text-terminal-400";
-    }
-  };
-
-  // Document list view - Terminal interface
-  if (!docId) {
+  if (docId && selectedDoc) {
     return (
-      <div
-        className="h-full w-full bg-terminal-950 text-success font-mono text-sm overflow-hidden flex flex-col"
-        onClick={() => inputRef.current?.focus()}
-      >
-        {/* Header */}
-        <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-terminal-500">
-            <Terminal className="w-4 h-4" />
-            <span className="text-xs uppercase tracking-wider">
-              Document Vault
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-terminal-600 text-xs">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span>INDEXED</span>
-            </div>
-            <div className="flex items-center gap-2 text-terminal-600 text-xs">
-              <Shield className="w-3 h-3" />
-              <span>SECURE</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Terminal Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-4xl mx-auto">
-            {/* Logs */}
-            <div className="space-y-0.5">
-              {logs.filter(Boolean).map((log) => {
-                if (log.text === "  [EMPTY STATE RENDERED]") return null;
-                return (
-                  <motion.div
-                    key={log.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.05 }}
-                    className={getLogColor(log.type)}
-                  >
-                    {log.text || "\u00A0"}
-                  </motion.div>
-                );
-              })}
-
-              {displayDocs.length === 0 && !isBooting && (
-                <div className="my-8">
-                  <EmptyState
-                    icon={FileText}
-                    title="Vault is Empty"
-                    description="No technical documents have been archived in this project yet. Initialize the first schema or design doc."
-                    actionLabel="New Document"
-                    onAction={() => navigate("/documents/new")}
+      <div className="h-full w-full bg-transparent flex flex-col p-6">
+        <div className="flex-1 glass-card flex flex-col overflow-hidden relative transition-all duration-150">
+          {/* Editor Header */}
+          <div className="h-24 border-b border-white/60 glass-header rounded-t-3xl flex items-center justify-between px-10 z-10 shrink-0">
+            <div className="flex items-center gap-8">
+              <button
+                onClick={() => navigate("/documents")}
+                className="px-4 py-2 border border-neutral-200 rounded-full text-[10px] tracking-[0.1em] font-mono hover:bg-neutral-100 hover:text-black transition-colors flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
+                <span>[ BACK ]</span>
+              </button>
+              <div className="h-6 w-px bg-neutral-200" />
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center bg-transparent">
+                  <FileText
+                    className="w-5 h-5 text-neutral-500"
+                    strokeWidth={1.5}
                   />
                 </div>
-              )}
-              <div ref={logsEndRef} />
+                <span className="font-header font-bold text-[28px] tracking-tighter text-black uppercase mt-1">
+                  {selectedDoc.title}
+                </span>
+              </div>
             </div>
-
-            {/* Command Input */}
-            {!isBooting && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-terminal-500">doc&gt;</span>
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={command}
-                    onChange={(e) => setCommand(e.target.value)}
-                    onKeyDown={handleCommand}
-                    className="bg-transparent border-none outline-none w-full text-terminal-100"
-                    placeholder="Type 'help' for commands..."
-                    autoFocus
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <motion.div
-                    animate={{ opacity: [1, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.7 }}
-                    className="absolute top-0 h-5 w-2 bg-success pointer-events-none"
-                    style={{ left: `${command.length * 9.6}px` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Booting indicator */}
-            {isBooting && (
-              <div className="mt-4 flex items-center gap-2 text-success animate-pulse">
-                <Loader2 className="animate-spin w-4 h-4" />
-                <span>INDEXING DOCUMENTS...</span>
-              </div>
-            )}
+            <div className="flex items-center gap-6">
+              <span className="text-[10px] tracking-[0.1em] font-mono uppercase text-neutral-500">
+                LAST SAVED:{" "}
+                {selectedDoc.updatedAt
+                  ? formatDistanceToNow(new Date(selectedDoc.updatedAt), {
+                      addSuffix: true,
+                    })
+                  : "JUST NOW"}
+              </span>
+              <GlassButton onClick={handleSave} disabled={isSaving} size="md">
+                {isSaving ? "SAVING..." : "[ COMMIT RECORD ]"}
+              </GlassButton>
+            </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
-          SENTRY DOCUMENT VAULT • TYPE "help" FOR COMMANDS
+          {/* Editor Content */}
+          <div className="flex-1 overflow-hidden relative">
+            <DocEditor content={content} onChange={setContent} />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Editor view
   return (
-    <div className="h-full flex flex-col">
-      {/* Editor Header */}
-      <div className="h-14 flex items-center justify-between px-6 border-b border-terminal-700">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/documents")}
-            className="p-1.5 rounded hover:bg-terminal-800 text-terminal-500 hover:text-terminal-300 transition-colors"
+    <div className="h-full w-full bg-transparent flex flex-col p-6">
+      <div className="flex-1 border border-neutral-200 border-b-[3px] rounded-3xl bg-white flex flex-col overflow-hidden relative shadow-sm transition-all duration-150">
+        {/* Toolbar Header */}
+        <div className="h-20 min-h-[80px] border-b border-neutral-200 px-8 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-6 w-full max-w-2xl">
+            <div className="flex items-center gap-3 text-neutral-400">
+              <FileText className="w-5 h-5" strokeWidth={1.5} />
+              <span className="text-[10px] tracking-[0.15em] font-mono uppercase hidden sm:inline-block">
+                Records
+              </span>
+            </div>
+            <div className="w-px h-6 bg-neutral-200 hidden sm:block" />
+
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+                strokeWidth={1.5}
+              />
+              <input
+                type="text"
+                placeholder="QUERY RECORDS..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 text-[12px] font-mono text-black rounded-full outline-none focus:border-black transition-colors"
+              />
+            </div>
+          </div>
+
+          <GlassButton
+            onClick={() => setShowCreateModal(true)}
+            size="md"
+            className="ml-4 shrink-0"
           >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="text-sm font-medium text-terminal-200">
-              {selectedDoc?.title || "New Document"}
-            </h1>
-            <p className="text-xs text-terminal-500 font-mono">
-              {selectedDoc
-                ? `Updated ${new Date(selectedDoc.updatedAt).toLocaleDateString()}`
-                : "Unsaved"}
-            </p>
+            <Plus className="w-4 h-4" />
+            <span className="text-[10px] tracking-[0.15em] uppercase">
+              [ CREATE ]
+            </span>
+          </GlassButton>
+        </div>
+
+        {/* Documents List */}
+        <div className="flex-1 overflow-y-auto min-h-0 bg-transparent">
+          {filteredDocs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="font-mono text-neutral-200 text-[120px] leading-none mb-6">
+                #
+              </div>
+              <div className="font-header text-[32px] tracking-tighter text-black uppercase mb-2">
+                NO RECORDS FOUND
+              </div>
+              <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mt-2">
+                CREATE A RECORD TO BEGIN LOGGING.
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col border-b border-neutral-200">
+              <div className="grid grid-cols-12 gap-6 p-6 border-b border-neutral-200 bg-transparent sticky top-0 z-10">
+                <div className="col-span-6 text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase">
+                  Title
+                </div>
+                <div className="col-span-3 text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase">
+                  Author
+                </div>
+                <div className="col-span-3 text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase text-right pr-12">
+                  Last Modified
+                </div>
+              </div>
+
+              {filteredDocs.map((doc, index) => (
+                <div
+                  key={doc.id}
+                  onClick={() => navigate(`/documents/${doc.id}`)}
+                  className="grid grid-cols-12 gap-6 p-6 border-b border-neutral-200 hover:bg-neutral-50 transition-colors cursor-pointer group items-center"
+                >
+                  <div className="col-span-6 flex items-center gap-6 w-full min-w-0">
+                    <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center shrink-0 group-hover:bg-white group-hover:border-black/20 transition-colors">
+                      <FileText
+                        className="w-5 h-5 text-neutral-500 group-hover:text-black transition-colors"
+                        strokeWidth={1.5}
+                      />
+                    </div>
+                    <span className="font-header text-[22px] tracking-tighter text-black uppercase truncate mt-1 group-hover:translate-x-1 transition-transform">
+                      {doc.title}
+                    </span>
+                  </div>
+                  <div className="col-span-3 flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center bg-transparent">
+                      <User
+                        className="w-4 h-4 text-neutral-500"
+                        strokeWidth={1.5}
+                      />
+                    </div>
+                    <span className="font-sans text-[15px] font-medium tracking-wide text-neutral-600 uppercase truncate">
+                      {doc.createdBy || "System"}
+                    </span>
+                  </div>
+                  <div className="col-span-3 flex items-center justify-end gap-6">
+                    <span className="text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase">
+                      {doc.updatedAt
+                        ? formatDistanceToNow(new Date(doc.updatedAt), {
+                            addSuffix: true,
+                          })
+                        : "JUST NOW"}
+                    </span>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-10 h-10 rounded-full border border-transparent hover:border-neutral-200 text-neutral-500 hover:text-black transition-colors flex items-center justify-center"
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Document Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-md p-6">
+          <div className="w-full max-w-[500px] border border-neutral-200 border-b-[4px] bg-white shadow-2xl flex flex-col rounded-3xl overflow-hidden relative">
+            <div className="p-8 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+              <h2 className="font-header text-2xl text-black uppercase tracking-widest">
+                Initialize Record
+              </h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="w-10 h-10 rounded-full border border-neutral-200 hover:border-[#D33E33]/50 text-neutral-500 hover:text-[#D33E33] transition-colors flex items-center justify-center bg-white"
+              >
+                <X className="w-5 h-5" strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleCreateDocument}
+              className="p-8 flex flex-col gap-8 bg-transparent"
+            >
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Record Designation *
+                </label>
+                <input
+                  name="title"
+                  type="text"
+                  required
+                  className="input-brutal w-full py-4 px-6 text-lg rounded-full"
+                  placeholder="INPUT TITLE..."
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Summary
+                </label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  className="input-brutal w-full py-4 px-6 text-lg resize-none rounded-3xl"
+                  placeholder="INPUT DESCRIPTION..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Classification
+                </label>
+                <select
+                  name="docType"
+                  defaultValue="general"
+                  className="input-brutal w-full py-4 px-6 text-lg appearance-none bg-white rounded-full"
+                >
+                  <option value="general">GENERAL LOG</option>
+                  <option value="adr">ARCH. DECISION [ADR]</option>
+                  <option value="rfc">REQUEST FOR COMMENT [RFC]</option>
+                  <option value="spec">SYSTEM SPEC</option>
+                  <option value="meeting_notes">SYNC RECORD</option>
+                  <option value="runbook">EXECUTIVE RUNBOOK</option>
+                </select>
+              </div>
+
+              <div className="flex gap-4 pt-6 mt-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-4 border border-neutral-200 text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 hover:bg-neutral-100 hover:text-black transition-colors rounded-full"
+                >
+                  [ ABORT ]
+                </button>
+                <GlassButton
+                  type="submit"
+                  disabled={isCreating || !activeProjectId}
+                  size="md"
+                  className="flex-1"
+                >
+                  {isCreating ? "INITIALIZING..." : "[ COMMIT ]"}
+                </GlassButton>
+              </div>
+            </form>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            <Save size={14} className="mr-1.5" />
-            {isSaving ? "Saving..." : "Save"}
-          </Button>
-          <button className="p-2 rounded hover:bg-terminal-800 text-terminal-500 hover:text-terminal-300 transition-colors">
-            <MoreHorizontal size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Editor Canvas */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto py-12 px-8">
-          <DocEditor content={content} onChange={setContent} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

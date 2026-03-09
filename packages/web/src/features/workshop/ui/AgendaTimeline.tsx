@@ -1,6 +1,6 @@
-import { CheckCircle2, Circle, Radio } from 'lucide-react';
-import { cn } from '../../../shared/lib/utils';
-import type { WorkshopPhase } from '../../../store/slices/workshopSlice';
+import { CheckCircle2, Circle, Radio } from "lucide-react";
+import { cn } from "../../../shared/lib/utils";
+import type { WorkshopPhase } from "../../../store/slices/workshopSlice";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Agenda Timeline
@@ -8,11 +8,11 @@ import type { WorkshopPhase } from '../../../store/slices/workshopSlice';
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const STEPS: { id: WorkshopPhase; label: string }[] = [
-  { id: 'LOBBY', label: 'Check-in' },
-  { id: 'AGENDA', label: 'Set Agenda' },
-  { id: 'BRAINSTORM', label: 'Brainstorming' },
-  { id: 'VOTING', label: 'Voting' },
-  { id: 'SUMMARY', label: 'Wrap-up' },
+  { id: "LOBBY", label: "Check-in" },
+  { id: "AGENDA", label: "Set Agenda" },
+  { id: "BRAINSTORM", label: "Brainstorming" },
+  { id: "VOTING", label: "Voting" },
+  { id: "SUMMARY", label: "Wrap-up" },
 ];
 
 interface AgendaTimelineProps {
@@ -25,21 +25,27 @@ export function AgendaTimeline({ currentPhase }: AgendaTimelineProps) {
   return (
     <div className="space-y-4 relative">
       {/* Vertical connecting line */}
-      <div className="absolute left-[9px] top-3 bottom-3 w-px bg-terminal-700" />
+      <div className="absolute left-[9px] top-3 bottom-3 w-px border-l border-neutral-200 border-dashed" />
 
       {STEPS.map((step, index) => {
         const isActive = step.id === currentPhase;
         const isPast = currentIndex > index;
 
         return (
-          <div key={step.id} className="relative flex items-center gap-3 z-10 group">
+          <div
+            key={step.id}
+            className="relative flex items-center gap-3 z-10 group"
+          >
             {/* Step Icon */}
             <div
               className={cn(
-                'rounded-full p-1 border-2 transition-all duration-300 bg-terminal-950',
-                isActive && 'border-success text-success scale-110',
-                isPast && 'border-success/50 text-success/50',
-                !isActive && !isPast && 'border-terminal-700 text-terminal-700'
+                "rounded-full p-1 border transition-all duration-300 bg-white",
+                isActive &&
+                  "border-[#D33E33] text-[#D33E33] scale-110 shadow-[0_0_8px_#D33E33]",
+                isPast && "border-black text-black",
+                !isActive &&
+                  !isPast &&
+                  "border-neutral-200 border-dashed text-neutral-300",
               )}
             >
               {isActive ? (
@@ -54,10 +60,10 @@ export function AgendaTimeline({ currentPhase }: AgendaTimelineProps) {
             {/* Step Label */}
             <span
               className={cn(
-                'text-xs font-mono transition-colors',
-                isActive && 'text-success font-medium',
-                isPast && 'text-terminal-500 line-through',
-                !isActive && !isPast && 'text-terminal-600'
+                "text-[10px] tracking-[0.1em] font-mono transition-colors uppercase",
+                isActive && "text-[#D33E33] font-bold",
+                isPast && "text-neutral-500 line-through",
+                !isActive && !isPast && "text-neutral-400",
               )}
             >
               {step.label}

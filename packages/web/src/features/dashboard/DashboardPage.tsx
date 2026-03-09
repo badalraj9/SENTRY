@@ -1,7 +1,7 @@
 import * as React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { logout } from "../../store/slices/authSlice";
 import {
@@ -11,331 +11,386 @@ import {
   useGetWorkshopsQuery,
   useGetDocumentsQuery,
 } from "../../shared/api/apiSlice";
-import { formatDistanceToNow } from "date-fns";
-import { Terminal, Shield, Loader2 } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import {
+  Terminal,
+  Shield,
+  Radio,
+  FolderKanban,
+  MessageSquare,
+  FileText,
+  MonitorPlay,
+  GitPullRequest,
+  Calendar,
+  TrendingUp,
+  Zap,
+  ChevronRight,
+} from "lucide-react";
+import { ActivityFeed } from "../feed/ui/ActivityFeed";
+import { cn } from "../../shared/lib/utils";
+import { GlassButton, LiquidTabs } from "../../shared/ui";
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   COMMAND CENTER - TERMINAL DASHBOARD
-   Full CLI-style experience matching Login/Register aesthetic
-   ═══════════════════════════════════════════════════════════════════════════ */
+type ActivityType =
+  | "BROADCAST"
+  | "DECISION"
+  | "WORKSHOP"
+  | "DOCUMENT"
+  | "PROJECT"
+  | "CHAT";
 
-interface LogEntry {
+interface Activity {
   id: string;
-  text: string;
-  type: "info" | "success" | "error" | "warning" | "header" | "divider";
+  type: ActivityType;
+  user: string;
+  title: string;
+  content: string;
+  timestamp: Date;
+  metadata?: Record<string, unknown>;
 }
 
 export default function DashboardPage() {
   const { user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
 
-  const [command, setCommand] = useState("");
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [isBooting, setIsBooting] = useState(true);
-
-  // Fetch real data from API
-  const { data: projectsData = [] } = useGetProjectsQuery();
-  const { data: chatsData = [] } = useGetChatsQuery();
-  // These require a projectId - skip for now in dashboard
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const { data: decisionsData = [] } = useGetDecisionsQuery(selectedProjectId, {
-    skip: !selectedProjectId,
+  const { data: projects = [] } = useGetProjectsQuery();
+  const { data: chats = [] } = useGetChatsQuery();
+  const { data: workshops = [] } = useGetWorkshopsQuery(
+    { projectId: "" },
+    { skip: true },
+  );
+  const { data: documents = [] } = useGetDocumentsQuery(
+    { projectId: "" },
+    { skip: true },
+  );
+  const { data: decisions = [] } = useGetDecisionsQuery("", {
+    skip: true,
   });
-  const { data: workshopsData = [] } = useGetWorkshopsQuery(
-    { projectId: selectedProjectId },
-    { skip: !selectedProjectId },
-  );
-  const { data: documentsData = [] } = useGetDocumentsQuery(
-    { projectId: selectedProjectId },
-    { skip: !selectedProjectId },
-  );
 
-  // Stats from real data (with fallbacks)
-  const projectCount = projectsData.length || 0;
-  const chatCount = chatsData.length || 0;
-  const decisionCount = decisionsData.length || 0;
-  const workshopCount = workshopsData.length || 0;
-  const docCount = documentsData.length || 0;
+  const activities = useMemo<Activity[]>(() => {
+    const items: Activity[] = [];
 
-  // Track if boot has run
-  const hasBooted = useRef(false);
+    projects.slice(0, 5).forEach((p) => {
+      items.push({
+        id: `proj-${p.id}`,
+        type: "PROJECT",
+        user: p.ownerId,
+        title: p.name,
+        content: p.description || "New project created",
+        timestamp: new Date(p.createdAt),
+        metadata: { visibility: p.visibility },
+      });
+    });
 
-  // Boot sequence animation - runs only once
-  useEffect(() => {
-    if (hasBooted.current) return;
-    hasBooted.current = true;
+    workshops.slice(0, 3).forEach((w) => {
+      items.push({
+        id: `ws-${w.id}`,
+        type: "WORKSHOP",
+        user: "Host",
+        title: w.title,
+        content:
+          w.status === "active"
+            ? "Workshop is active now"
+            : "Workshop scheduled",
+        timestamp: new Date(w.scheduledStart || new Date().toISOString()),
+        metadata: { status: w.status },
+      });
+    });
 
-    const bootSequence: LogEntry[] = [
-      { id: "1", text: "SENTRY_OS v4.0.2 [COMMAND CENTER]", type: "header" },
-      {
-        id: "2",
-        text: "═══════════════════════════════════════════════════════",
-        type: "divider",
-      },
-      { id: "3", text: "INIT: LOADING COMMAND CENTER...", type: "info" },
-      { id: "4", text: "SYNC: CONNECTING TO NEURAL MESH...", type: "info" },
-      { id: "5", text: "✓ SECURE UPLINK ESTABLISHED", type: "success" },
-      {
-        id: "6",
-        text: `✓ OPERATOR: @${user?.handle || user?.displayName || "COMMANDER"}`,
-        type: "success",
-      },
-      { id: "7", text: "", type: "info" },
-      {
-        id: "8",
-        text: "── SYSTEM STATUS ──────────────────────────────────────",
-        type: "divider",
-      },
-      { id: "9", text: `  ACTIVE_PROJECTS:  ${projectCount}`, type: "info" },
-      { id: "10", text: `  OPEN_CHANNELS:    ${chatCount}`, type: "info" },
-      {
-        id: "11",
-        text: `  DECISIONS:        ${decisionCount}`,
-        type: decisionCount > 0 ? "warning" : "info",
-      },
-      { id: "12", text: `  WORKSHOPS:        ${workshopCount}`, type: "info" },
-      { id: "13", text: `  DOCUMENTS:        ${docCount}`, type: "info" },
-      { id: "14", text: "", type: "info" },
-      {
-        id: "15",
-        text: "═══════════════════════════════════════════════════════",
-        type: "divider",
-      },
-      { id: "16", text: "SYSTEM READY. AWAITING COMMAND.", type: "success" },
-      { id: "17", text: "", type: "info" },
-    ];
+    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }, [projects, workshops]);
 
-    // Staggered boot animation using recursive setTimeout
-    let currentIndex = 0;
+  const stats = [
+    {
+      label: "Projects",
+      value: projects.length,
+      icon: FolderKanban,
+      color: "text-emerald-400",
+    },
+    {
+      label: "Channels",
+      value: chats.length,
+      icon: MessageSquare,
+      color: "text-blue-400",
+    },
+    {
+      label: "Workshops",
+      value: workshops.length,
+      icon: MonitorPlay,
+      color: "text-amber-400",
+    },
+  ];
 
-    const addNextLog = () => {
-      if (currentIndex < bootSequence.length) {
-        setLogs((prev) => [...prev, bootSequence[currentIndex]]);
-        currentIndex++;
-        setTimeout(addNextLog, 50);
-      } else {
-        setIsBooting(false);
-        inputRef.current?.focus();
-      }
-    };
-
-    addNextLog();
-  }, []); // Empty deps - run once
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  // Handle commands
-  const handleCommand = (e: React.KeyboardEvent) => {
-    if (e.key !== "Enter" || !command.trim()) return;
-
-    const cmd = command.toLowerCase().trim();
-    setLogs((prev) => [
-      ...prev,
-      { id: Date.now().toString(), text: `cmd> ${command}`, type: "info" },
-    ]);
-    setCommand("");
-
-    // Command routing
-    if (cmd === "help" || cmd === "?") {
-      addLogs([
-        { text: "", type: "info" },
-        {
-          text: "── AVAILABLE COMMANDS ─────────────────────────────────",
-          type: "divider",
-        },
-        { text: "  chat      → Open communications hub", type: "info" },
-        { text: "  projects  → View active projects", type: "info" },
-        { text: "  decisions → Review pending decisions", type: "info" },
-        { text: "  docs      → Access document vault", type: "info" },
-        { text: "  workshop  → Enter workshop space", type: "info" },
-        { text: "  profile   → View operator dossier", type: "info" },
-        { text: "  status    → System status report", type: "info" },
-        { text: "  clear     → Clear terminal", type: "info" },
-        { text: "  logout    → Terminate session", type: "info" },
-        { text: "", type: "info" },
-      ]);
-    } else if (cmd === "chat" || cmd === "comms") {
-      addLogs([
-        { text: "→ ROUTING TO COMMUNICATIONS HUB...", type: "success" },
-      ]);
-      setTimeout(() => navigate("/chat"), 500);
-    } else if (cmd === "projects" || cmd === "proj") {
-      addLogs([{ text: "→ LOADING PROJECT MATRIX...", type: "success" }]);
-      setTimeout(() => navigate("/projects"), 500);
-    } else if (cmd === "decisions" || cmd === "decide") {
-      addLogs([{ text: "→ ACCESSING DECISION LOG...", type: "success" }]);
-      setTimeout(() => navigate("/decisions"), 500);
-    } else if (cmd === "docs" || cmd === "documents") {
-      addLogs([{ text: "→ OPENING DOCUMENT VAULT...", type: "success" }]);
-      setTimeout(() => navigate("/documents"), 500);
-    } else if (cmd === "workshop" || cmd === "ws") {
-      addLogs([{ text: "→ ENTERING WORKSHOP SPACE...", type: "success" }]);
-      setTimeout(() => navigate("/workshops"), 500);
-    } else if (cmd === "profile" || cmd === "me") {
-      addLogs([{ text: "→ LOADING OPERATOR DOSSIER...", type: "success" }]);
-      setTimeout(() => navigate("/profile"), 500);
-    } else if (cmd === "status") {
-      addLogs([
-        { text: "", type: "info" },
-        {
-          text: "── SYSTEM STATUS ──────────────────────────────────────",
-          type: "divider",
-        },
-        { text: "  UPTIME:           99.7%", type: "success" },
-        { text: "  LATENCY:          12ms", type: "success" },
-        { text: "  ACTIVE SESSIONS:  47", type: "info" },
-        { text: "  MEMORY:           2.4GB / 8GB", type: "info" },
-        { text: "  STATUS:           OPERATIONAL", type: "success" },
-        { text: "", type: "info" },
-      ]);
-    } else if (cmd === "clear" || cmd === "cls") {
-      setLogs([
-        { id: "1", text: "SENTRY_OS v4.0.2 [COMMAND CENTER]", type: "header" },
-        {
-          id: "2",
-          text: "═══════════════════════════════════════════════════════",
-          type: "divider",
-        },
-        {
-          id: "3",
-          text: "TERMINAL CLEARED. AWAITING COMMAND.",
-          type: "success",
-        },
-        { id: "4", text: "", type: "info" },
-      ]);
-    } else if (cmd === "logout" || cmd === "exit") {
-      addLogs([
-        { text: "TERMINATING SESSION...", type: "warning" },
-        { text: "GOODBYE, COMMANDER.", type: "info" },
-      ]);
-      setTimeout(() => {
-        dispatch(logout());
-        navigate("/login");
-      }, 1000);
-    } else {
-      addLogs([
-        { text: `ERR: UNKNOWN COMMAND "${cmd}"`, type: "error" },
-        { text: 'TYPE "help" FOR AVAILABLE COMMANDS', type: "info" },
-      ]);
-    }
-  };
-
-  const addLogs = (entries: Omit<LogEntry, "id">[]) => {
-    const newLogs = entries.map((e, i) => ({
-      ...e,
-      id: `${Date.now()}-${i}`,
+  const upcomingWorkshops = workshops
+    .filter((w) => w.status === "scheduled")
+    .slice(0, 3)
+    .map((w) => ({
+      id: w.id,
+      title: w.title,
+      scheduledAt: w.scheduledStart ? new Date(w.scheduledStart) : new Date(),
     }));
-    setLogs((prev) => [...prev, ...newLogs]);
-  };
-
-  const getLogColor = (type: LogEntry["type"]) => {
-    switch (type) {
-      case "success":
-        return "text-success";
-      case "error":
-        return "text-error";
-      case "warning":
-        return "text-warning";
-      case "header":
-        return "text-success font-bold";
-      case "divider":
-        return "text-terminal-600";
-      default:
-        return "text-terminal-400";
-    }
-  };
 
   return (
-    <div
-      className="h-full w-full bg-terminal-950 text-success font-mono text-sm overflow-hidden flex flex-col"
-      onClick={() => inputRef.current?.focus()}
-    >
-      {/* Header */}
-      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-terminal-500">
-          <Terminal className="w-4 h-4" />
-          <span className="text-xs uppercase tracking-wider">
-            Command Center
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-terminal-600 text-xs">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span>ONLINE</span>
+    <div className="h-full w-full bg-transparent overflow-hidden flex flex-col md:flex-row p-4 gap-4">
+      {/* LEFT COLUMN: Navigation / Status (20%) */}
+      <div className="w-full md:w-1/5 glass-card flex flex-col shrink-0 overflow-hidden">
+        <div className="p-8 border-b border-neutral-200">
+          <h2 className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mb-4">
+            SYSTEM STATUS
+          </h2>
+          <div className="flex items-center gap-3 font-mono text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#D33E33] animate-pulse-fast inline-block shadow-[0_0_8px_#D33E33]" />
+            <span className="text-black tracking-widest uppercase font-bold text-[11px]">
+              ONLINE
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-terminal-600 text-xs">
-            <Shield className="w-3 h-3" />
-            <span>SECURE</span>
+          <div className="mt-4 text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono">
+            OPR:{" "}
+            <span className="text-black font-bold">
+              {user?.handle || "UNKNOWN"}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 p-8 flex flex-col justify-end">
+          <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mb-6">
+            SHORTCUTS
+          </div>
+          <div className="space-y-4 font-mono text-xs">
+            <div className="flex justify-between text-neutral-500 items-center">
+              <span className="uppercase tracking-widest text-[10px]">
+                Search
+              </span>{" "}
+              <span className="text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-1 flex items-center justify-center rounded-md">
+                ^K
+              </span>
+            </div>
+            <div className="flex justify-between text-neutral-500 items-center">
+              <span className="uppercase tracking-widest text-[10px]">
+                Assistant
+              </span>{" "}
+              <span className="text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-1 flex items-center justify-center rounded-md">
+                ^J
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Terminal Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
-          {/* Logs */}
-          <div className="space-y-0.5">
-            {logs.filter(Boolean).map((log, index) => (
-              <motion.div
-                key={`${log.id}-${index}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.05 }}
-                className={getLogColor(log.type)}
-              >
-                {log.text || "\u00A0"}
-              </motion.div>
-            ))}
-            <div ref={logsEndRef} />
+      {/* CENTER COLUMN: Activity Pulse (60%) */}
+      <div className="flex-1 glass-card flex flex-col min-w-0 overflow-hidden relative">
+        <div className="p-6 border-b border-white/60 flex items-center gap-4 shrink-0 glass-header rounded-t-3xl">
+          <div className="w-10 h-10 border border-neutral-200 shadow-inner rounded-full flex items-center justify-center bg-white">
+            <Terminal className="w-4 h-4 text-black" strokeWidth={1.5} />
           </div>
+          <h1 className="font-header text-[32px] font-bold tracking-widest text-black m-0 leading-none mt-1.5">
+            ACTIVITY PULSE
+          </h1>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden bg-transparent relative">
+          <DashboardActivityFeed activities={activities} />
+        </div>
+      </div>
 
-          {/* Command Input */}
-          {!isBooting && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-terminal-500">cmd&gt;</span>
-              <div className="relative flex-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  onKeyDown={handleCommand}
-                  className="bg-transparent border-none outline-none w-full text-terminal-100"
-                  placeholder=""
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {/* Blinking Cursor */}
-                <motion.div
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.7 }}
-                  className="absolute top-0 h-5 w-2 bg-success pointer-events-none"
-                  style={{ left: `${command.length * 9.6}px` }}
-                />
+      {/* RIGHT COLUMN: Stats & Actions (20%) */}
+      <div className="w-full md:w-1/5 flex flex-col shrink-0 gap-4">
+        {/* Stats Card */}
+        <div className="glass-card overflow-hidden flex flex-col">
+          <div className="grid grid-cols-2 border-b border-neutral-200">
+            {stats.slice(0, 2).map((stat) => (
+              <div
+                key={stat.label}
+                className="p-6 h-32 border-r border-neutral-200 last:border-r-0 flex flex-col justify-end gap-1"
+              >
+                <div className="text-[48px] font-header font-bold text-black leading-none tracking-tighter">
+                  {stat.value}
+                </div>
+                <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-6 h-32 flex gap-4 items-end justify-between relative">
+            <div className="flex flex-col gap-1 justify-end">
+              <div className="text-[48px] font-header font-bold text-black leading-none tracking-tighter">
+                {stats[2].value}
+              </div>
+              <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono">
+                {stats[2].label}
               </div>
             </div>
-          )}
-
-          {/* Booting indicator */}
-          {isBooting && (
-            <div className="mt-4 flex items-center gap-2 text-success animate-pulse">
-              <Loader2 className="animate-spin w-4 h-4" />
-              <span>INITIALIZING...</span>
+            <div className="absolute top-6 right-6 w-12 h-12 border border-neutral-300 shadow-inner rounded-full flex items-center justify-center bg-neutral-50">
+              <MonitorPlay className="w-5 h-5 text-black" strokeWidth={1.5} />
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Actions & Upcoming Card */}
+        <div className="flex-1 glass-card overflow-hidden flex flex-col min-h-0">
+          {/* Quick Actions */}
+          <div className="p-6 border-b border-neutral-200">
+            <h3 className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mb-6 px-2">
+              Quick Actions
+            </h3>
+            <div className="space-y-3">
+              <QuickAction
+                icon={FolderKanban}
+                label="NEW PROJECT"
+                onClick={() => navigate("/projects")}
+              />
+              <QuickAction
+                icon={MessageSquare}
+                label="OPEN CHAT"
+                onClick={() => navigate("/chat")}
+              />
+            </div>
+          </div>
+
+          {/* Upcoming */}
+          <div className="flex-1 p-8 overflow-y-auto min-h-[200px] border-t border-neutral-200">
+            <h3 className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mb-6">
+              Upcoming
+            </h3>
+            {upcomingWorkshops.length === 0 ? (
+              <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono">
+                - NO WORKSHOPS -
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {upcomingWorkshops.map((ws) => (
+                  <div
+                    key={ws.id}
+                    className="cursor-pointer group flex flex-col gap-1"
+                    onClick={() => navigate(`/workshops/${ws.id}`)}
+                  >
+                    <div className="text-sm font-sans tracking-wide text-neutral-600 group-hover:text-black transition-colors truncate">
+                      {ws.title}
+                    </div>
+                    <div className="text-[10px] tracking-[0.1em] font-mono uppercase text-[#D33E33] transition-colors group-hover:text-black">
+                      {format(ws.scheduledAt, "MMM d, HH:mm")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Footer */}
-      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
-        SENTRY COLLABORATIVE OS • TYPE "help" FOR COMMANDS
+function QuickAction({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <GlassButton
+      onClick={onClick}
+      size="md"
+      className="w-full justify-between mb-2 rounded-2xl text-[10px]"
+    >
+      <span className="flex items-center gap-3">
+        <div className="w-7 h-7 rounded-full border border-white/20 flex items-center justify-center bg-white/10">
+          <Icon className="w-3.5 h-3.5 text-white/80" strokeWidth={1.5} />
+        </div>
+        <span className="tracking-[0.15em] uppercase font-mono pr-2">
+          {label}
+        </span>
+      </span>
+      <ChevronRight className="w-3 h-3 text-white/50" />
+    </GlassButton>
+  );
+}
+
+function DashboardActivityFeed({ activities }: { activities: Activity[] }) {
+  const [filter, setFilter] = useState<ActivityType | "ALL">("ALL");
+
+  const filteredActivities = activities.filter(
+    (a) => filter === "ALL" || a.type === filter,
+  );
+
+  const filterOptions: { value: ActivityType | "ALL"; label: string }[] = [
+    { value: "ALL", label: "All" },
+    { value: "PROJECT", label: "Projects" },
+    { value: "WORKSHOP", label: "Workshops" },
+    { value: "DECISION", label: "Decisions" },
+    { value: "DOCUMENT", label: "Docs" },
+  ];
+
+  return (
+    <div className="h-full flex flex-col bg-transparent">
+      {/* Filter Bar */}
+      <div className="flex items-center gap-4 px-8 py-4 border-b border-neutral-200 bg-white/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        <LiquidTabs
+          layoutId="activity-feed-filter"
+          tabs={filterOptions}
+          active={filter}
+          onChange={(v) => setFilter(v)}
+          size="sm"
+        />
+      </div>
+
+      {/* Feed List */}
+      <div className="flex-1 overflow-y-auto relative min-h-[400px]">
+        {filteredActivities.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-12">
+            <Radio
+              className="w-12 h-12 text-neutral-300 mb-6"
+              strokeWidth={1.5}
+            />
+            <p className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono">
+              NO ACTIVITY DETECTED
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {filteredActivities.map((item, index) => (
+              <FeedCard key={item.id} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FeedCard({ item }: { item: Activity }) {
+  const timeAgo = formatDistanceToNow(item.timestamp, { addSuffix: true });
+
+  const config = {
+    PROJECT: { icon: FolderKanban },
+    WORKSHOP: { icon: MonitorPlay },
+    DECISION: { icon: GitPullRequest },
+    DOCUMENT: { icon: FileText },
+    CHAT: { icon: MessageSquare },
+    BROADCAST: { icon: Radio },
+  };
+
+  const { icon: Icon } = config[item.type] || config.PROJECT;
+
+  return (
+    <div className="p-6 border-b border-neutral-200 hover:bg-neutral-50 transition-colors cursor-pointer group flex gap-6">
+      <div className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center bg-transparent text-neutral-500 group-hover:text-black group-hover:border-black/20 shrink-0 transition-colors">
+        <Icon size={16} strokeWidth={1.5} />
+      </div>
+      <div className="flex-1 min-w-0 pt-1">
+        <div className="flex justify-between items-start gap-4 mb-2">
+          <h3 className="text-[15px] font-sans tracking-wide text-neutral-800 group-hover:text-black transition-colors truncate font-medium">
+            {item.title}
+          </h3>
+          <span className="text-[10px] font-mono text-neutral-500 group-hover:text-black shrink-0 uppercase tracking-[0.1em] transition-colors mt-0.5">
+            {timeAgo}
+          </span>
+        </div>
+        <p className="text-xs font-mono text-neutral-500 line-clamp-1 group-hover:text-neutral-900 transition-colors tracking-wide">
+          {item.content}
+        </p>
       </div>
     </div>
   );

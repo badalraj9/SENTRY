@@ -1,0 +1,34 @@
+# SENTRY Chat UI Redesign Plan
+
+This plan details the steps to address the design feedback regarding the Chat module. The goal is to move from a heavily terminal-based log interface to a user-friendly conversational layout (similar to WhatsApp or Slack), while integrating "slash commands" that open contextual floating panels rather than triggering full page navigations.
+
+## Proposed Changes
+
+### 1. Chat Interface Overhaul (WhatsApp/Modern Style)
+
+- [MODIFY] [ChatWindow.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/chat/ui/ChatWindow.tsx)
+  - Layout Structure: Convert the `logs` rendering into a standard messaging structure.
+    - Incoming messages align left with a distinct background (e.g., `terminal-800`).
+    - Outgoing ("self") messages align right with the primary accent color (e.g., `success-muted` or `primary`).
+    - Remove the "boot sequence" typing effect in the chat to immediately show history.
+  - Input Area: Implement a standard fixed sticky-bottom input box, removing the `msg>` prefix and blinking `div` cursor. Use a polished text area.
+
+### 2. Contextual Command Panels (Floating Overlays)
+
+- [NEW] Component: `SlidingPanel` (or `FloatingWidget`).
+  - Create a reusable, draggable, or sliding overlay container that renders over the right side or center of the chat interface.
+- [MODIFY] [ChatWindow.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/chat/ui/ChatWindow.tsx)
+  - Command Handling: intercept `/workshops`, `/feed`, `/projects` in the chat input.
+  - State Management: When a command is triggered, instead of calling `useNavigate()` to route away from the chat, load the respective Component (e.g., `<WorkshopPage />`, `<ActivityFeed />`) into the `FloatingWidget` overlay state.
+  - The chat remains visible in the background or side.
+
+### 3. Cleaning Up Terminal Logic
+
+- [MODIFY] [ChatWindow.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/chat/ui/ChatWindow.tsx)
+  - Remove all pseudo-terminal styling mechanisms ([getLogColor](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/documents/DocumentsPage.tsx#327-343), specific divider lines `══════════`).
+  - Render an [EmptyState](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/shared/ui/EmptyState.tsx#15-54) when the channel has zero messages instead of falling back to terminal logs.
+
+## Verification Plan
+
+- **UI Verification:** Send messages as the current user and ensure they render on the right with a distinctive bubble. Ensure the history renders left-aligned for other users.
+- **Command Verification:** Type `/workshops` and hit Enter. Verify that a sliding panel or overlay appears showing the Workshops feature, without unmounting the active WebSocket chat link.

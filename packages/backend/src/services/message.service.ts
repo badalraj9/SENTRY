@@ -61,6 +61,19 @@ export async function getMessageById(id: string): Promise<Message | null> {
   return rows[0] || null;
 }
 
+export async function getThreadMessages(parentMessageId: string): Promise<Message[]> {
+  const { rows } = await query<Message>(
+    `SELECT id, chat_id as "chatId", user_id as "userId", content,
+            reply_to as "replyTo", created_at as "createdAt",
+            edited_at as "editedAt", deleted
+     FROM messages 
+     WHERE reply_to = $1 AND deleted = false
+     ORDER BY created_at ASC`,
+    [parentMessageId]
+  );
+  return rows;
+}
+
 export interface GetMessagesOptions {
   limit?: number;
   before?: Date;

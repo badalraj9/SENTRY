@@ -1,0 +1,31 @@
+# SENTRY Major UI Redesign Plan
+
+The objective is to move away from the "boring" terminal-centric layouts of the Dashboard, Projects, and Workshops pages and replace them with a premium, high-fidelity experience centered around a real-time Activity Feed ("The Pulse").
+
+## Proposed Changes
+
+### 1. Dashboard Transformation (Command Center -> Pulse Feed)
+- [MODIFY] [packages/web/src/features/dashboard/DashboardPage.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/dashboard/DashboardPage.tsx)
+  - Completely replace the CLI-style boot sequence with the [ActivityFeed](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/feed/ui/ActivityFeed.tsx#147-281) component.
+  - Implement a multi-column layout on the dashboard:
+    - **Main Column**: The live Activity Pulse (updates on followed projects, docs, workshops).
+    - **Right Sidebar**: Stats and "Upcoming Workshops" or "Pinned Projects".
+  - Integrate real-time WebSocket listeners to push new activities directly into the view without reloading.
+
+### 2. Projects & Workshops Redesign
+- [MODIFY] [packages/web/src/features/projects/ProjectsPage.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/projects/ProjectsPage.tsx)
+  - Replace the terminal-text logs with a high-fidelity grid of **Project Cards**.
+  - Use glassmorphic styles, hover-animations, and status indicators (Activity/Health).
+- [MODIFY] [packages/web/src/features/workshop/ui/WorkshopLiveSession.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/features/workshop/ui/WorkshopLiveSession.tsx) (and related list view)
+  - Create a "Live Hub" UI for workshops.
+  - Use a timeline view for past summaries and an "active stage" card for ongoing sessions.
+
+### 3. Aesthetics & Transitions
+- [MODIFY] [packages/web/src/index.css](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/index.css)
+  - Add premium animation classes (staggered list entry, glass-shimmer).
+- [MODIFY] [packages/web/src/app/layouts/DashboardLayout.tsx](file:///d:/github/SENTRY-jules-polish-frontend-pitch-5288243582464063829/SENTRY-jules-polish-frontend-pitch-5288243582464063829/packages/web/src/app/layouts/DashboardLayout.tsx)
+  - Ensure the transition between these new rich modules is seamless with page-entry animations.
+
+## Verification Plan
+- **Real-time Test**: Trigger a backend event (e.g. creating a project) and verify it appears instantly on the Dashboard Pulse without a refresh.
+- **Visual Polish**: Peer review for "wow factor" and premium feel (use of gradients, shadows, and crisp typography).

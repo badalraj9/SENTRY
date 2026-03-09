@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   useGetProjectsQuery,
   useCreateProjectMutation,
@@ -7,250 +7,55 @@ import {
 } from "../../shared/api/apiSlice";
 import { useAppSelector } from "../../store/hooks";
 import { useParams, useNavigate } from "react-router-dom";
-import { FolderKanban } from "lucide-react";
-import { EmptyState } from "../../shared/ui";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FolderKanban,
+  Plus,
+  Lock,
+  Globe,
+  Users,
+  ArrowRight,
+  Calendar,
+  MoreHorizontal,
+  Search,
+  Filter,
+  Terminal,
+} from "lucide-react";
+import { EmptyState, GlassButton } from "../../shared/ui";
+import { cn } from "../../shared/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 
-interface LogEntry {
+interface Project {
   id: string;
-  text: string;
-  type:
-    | "info"
-    | "success"
-    | "error"
-    | "warning"
-    | "header"
-    | "divider"
-    | "project";
+  name: string;
+  description?: string;
+  visibility: "public" | "private" | "invite_only";
+  ownerId: string;
+  createdAt: string;
 }
-
-// ... (keep LogEntry and generateKey)
-
-let globalKeyCounter = 0;
-const generateKey = () => `log-${++globalKeyCounter}-${Date.now()}`;
 
 export default function ProjectsPage() {
   const { projectId } = useParams();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const [command, setCommand] = useState("");
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [isBooting, setIsBooting] = useState(true);
-  const bootStarted = useRef(false);
   const navigate = useNavigate();
+  const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: projects } = useGetProjectsQuery();
+  const { data: projects = [], isLoading: projectsLoading } =
+    useGetProjectsQuery();
   const { data: selectedProject } = useGetProjectQuery(projectId || "", {
     skip: !projectId,
   });
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
 
-  // Boot sequence
-  useEffect(() => {
-    if (bootStarted.current) return;
-    bootStarted.current = true;
-
-    const bootSequence: LogEntry[] = [
-      {
-        id: generateKey(),
-        text: "SENTRY_OS v4.0.2 [PROJECTS MODULE]",
-        type: "header",
-      },
-      {
-        id: generateKey(),
-        text: "═══════════════════════════════════════════════════════",
-        type: "divider",
-      },
-      {
-        id: generateKey(),
-        text: "INIT: LOADING PROJECTS MODULE...",
-        type: "info",
-      },
-      {
-        id: generateKey(),
-        text: "✓ SECURE CONNECTION ESTABLISHED",
-        type: "success",
-      },
-      { id: generateKey(), text: "", type: "info" },
-    ];
-
-    setLogs(bootSequence);
-
-    const timer = setTimeout(() => {
-      setIsBooting(false);
-      inputRef.current?.focus();
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, []);
-  // Show projects when loaded
-  useEffect(() => {
-    if (!isBooting && projects) {
-      const projectLogs: LogEntry[] = [
-        {
-          id: generateKey(),
-          text: "── ACTIVE PROJECTS ────────────────────────────────────",
-          type: "divider",
-        },
-      ];
-
-      if (projects.length === 0) {
-        projectLogs.push({
-          id: generateKey(),
-          text: "  [EMPTY STATE RENDERED]",
-          type: "info",
-        });
-      } else {
-        projects.forEach((proj, idx) => {
-          projectLogs.push({
-            id: generateKey(),
-            text: `  [${String(idx + 1).padStart(2, "0")}] ${proj.name} ${proj.visibility === "private" ? "(private)" : ""}`,
-            type: "project",
-          });
-        });
-      }
-
-      projectLogs.push({ id: generateKey(), text: "", type: "info" });
-      projectLogs.push({
-        id: generateKey(),
-        text: "SYSTEM READY. AWAITING COMMAND.",
-        type: "success",
-      });
-      projectLogs.push({ id: generateKey(), text: "", type: "info" });
-
-      setLogs((prev) => [...prev, ...projectLogs]);
-    }
-  }, [projects, isBooting]);
-
-  // Auto-scroll
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  const handleCommand = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key !== "Enter" || !command.trim()) return;
-
-      const cmdText = command;
-      const cmd = command.toLowerCase().trim();
-      setCommand("");
-
-      const newLogs: LogEntry[] = [
-        { id: generateKey(), text: `sys> ${cmdText}`, type: "info" },
-      ];
-
-      if (cmd === "help" || cmd === "?") {
-        newLogs.push(
-          { id: generateKey(), text: "", type: "info" },
-          {
-            id: generateKey(),
-            text: "── AVAILABLE COMMANDS ────────────────────────────────",
-            type: "divider",
-          },
-          {
-            id: generateKey(),
-            text: "  list           → Show all projects",
-            type: "info",
-          },
-          {
-            id: generateKey(),
-            text: "  new            → Create new project",
-            type: "info",
-          },
-          {
-            id: generateKey(),
-            text: "  open <name>    → Open project details",
-            type: "info",
-          },
-          {
-            id: generateKey(),
-            text: "  back           → Return to dashboard",
-            type: "info",
-          },
-          {
-            id: generateKey(),
-            text: "  clear          → Clear terminal",
-            type: "info",
-          },
-          { id: generateKey(), text: "", type: "info" },
-        );
-      } else if (cmd === "list" || cmd === "ls") {
-        if (projects && projects.length > 0) {
-          newLogs.push({
-            id: generateKey(),
-            text: "── PROJECT LIST ────────────────────────────────────────",
-            type: "divider",
-          });
-          projects.forEach((proj, idx) => {
-            newLogs.push({
-              id: generateKey(),
-              text: `  [${String(idx + 1).padStart(2, "0")}] ${proj.name} (${proj.visibility})`,
-              type: "info",
-            });
-          });
-          newLogs.push({ id: generateKey(), text: "", type: "info" });
-        }
-      } else if (cmd === "new" || cmd === "create") {
-        setShowForm(true);
-        newLogs.push(
-          { id: generateKey(), text: "", type: "info" },
-          {
-            id: generateKey(),
-            text: "── CREATE NEW PROJECT ────────────────────────────────",
-            type: "divider",
-          },
-          {
-            id: generateKey(),
-            text: "  Opening project creation form...",
-            type: "info",
-          },
-          { id: generateKey(), text: "", type: "info" },
-        );
-      } else if (cmd.startsWith("open ") || cmd.startsWith("cd ")) {
-        const projectName = cmd.replace(/^(open|cd)\s+/, "");
-        const project = projects?.find(
-          (p) => p.name.toLowerCase() === projectName.toLowerCase(),
-        );
-        if (project) {
-          newLogs.push({
-            id: generateKey(),
-            text: `→ LOADING PROJECT: ${project.name}...`,
-            type: "success",
-          });
-          setLogs((prev) => [...prev, ...newLogs]);
-          setTimeout(() => navigate(`/p/${project.id}`), 300);
-          return;
-        } else {
-          newLogs.push({
-            id: generateKey(),
-            text: `ERR: PROJECT "${projectName}" NOT FOUND`,
-            type: "error",
-          });
-        }
-      } else if (cmd === "back" || cmd === "home" || cmd === "dashboard") {
-        newLogs.push({
-          id: generateKey(),
-          text: "→ RETURNING TO COMMAND CENTER...",
-          type: "success",
-        });
-        setLogs((prev) => [...prev, ...newLogs]);
-        setTimeout(() => navigate("/"), 300);
-        return;
-      } else if (cmd === "clear") {
-        setLogs([]);
-        return;
-      } else {
-        newLogs.push({
-          id: generateKey(),
-          text: `ERR: UNKNOWN COMMAND "${cmd}"`,
-          type: "error",
-        });
-      }
-
-      setLogs((prev) => [...prev, ...newLogs]);
-    },
-    [command, projects, navigate],
-  );
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const query = searchQuery.toLowerCase();
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query),
+    );
+  }, [projects, searchQuery]);
 
   const handleCreateProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -267,270 +72,376 @@ export default function ProjectsPage() {
     try {
       await createProject({ name, description, visibility }).unwrap();
       setShowForm(false);
-      setLogs((prev) => [
-        ...prev,
-        { id: generateKey(), text: "", type: "info" },
-        {
-          id: generateKey(),
-          text: `✓ PROJECT "${name}" CREATED SUCCESSFULLY`,
-          type: "success",
-        },
-        { id: generateKey(), text: "", type: "info" },
-      ]);
     } catch (error) {
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: generateKey(),
-          text: `ERR: FAILED TO CREATE PROJECT`,
-          type: "error",
-        },
-      ]);
+      console.error("Failed to create project:", error);
     }
   };
 
-  const getLogColor = (type: LogEntry["type"]) => {
-    switch (type) {
-      case "success":
-        return "text-emerald-400";
-      case "error":
-        return "text-red-400";
-      case "warning":
-        return "text-amber-400";
-      case "header":
-        return "text-emerald-400 font-bold";
-      case "divider":
-        return "text-terminal-600";
-      case "project":
-        return "text-cyan-400";
-      default:
-        return "text-terminal-400";
-    }
-  };
-
-  // Project Detail View
   if (projectId && selectedProject) {
     return (
-      <div className="h-full w-full bg-terminal-950 text-terminal-300 font-mono text-sm overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-terminal-500">
-            <span>▤</span>
-            <span className="text-xs uppercase tracking-wider">
-              PROJECT DETAIL
-            </span>
-          </div>
-          <button
-            onClick={() => navigate("/projects")}
-            className="text-xs text-emerald-400 hover:text-emerald-300"
-          >
-            ← back to projects
-          </button>
-        </div>
-
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-4xl mx-auto space-y-4">
-            <div className="border border-terminal-800 p-4">
-              <h1 className="text-lg text-emerald-400 mb-2">
-                {selectedProject.name}
-              </h1>
-              <p className="text-terminal-500 text-xs mb-4">
-                ID: {selectedProject.id} | VISIBILITY:{" "}
-                {selectedProject.visibility}
-              </p>
-              {selectedProject.description && (
-                <p className="text-terminal-300">
-                  {selectedProject.description}
-                </p>
-              )}
-            </div>
-
-            <div className="border border-terminal-800 p-4">
-              <h2 className="text-xs text-terminal-500 mb-3 uppercase tracking-wider">
-                Project Actions
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() =>
-                    navigate(`/messages?project=${selectedProject.id}`)
-                  }
-                  className="px-3 py-1.5 border border-terminal-700 text-xs hover:bg-terminal-900"
-                >
-                  View Messages
-                </button>
-                <button
-                  onClick={() =>
-                    navigate(`/decisions?project=${selectedProject.id}`)
-                  }
-                  className="px-3 py-1.5 border border-terminal-700 text-xs hover:bg-terminal-900"
-                >
-                  View Decisions
-                </button>
-                <button
-                  onClick={() =>
-                    navigate(`/documents?project=${selectedProject.id}`)
-                  }
-                  className="px-3 py-1.5 border border-terminal-700 text-xs hover:bg-terminal-900"
-                >
-                  View Documents
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProjectDetail
+        project={selectedProject}
+        onBack={() => navigate("/projects")}
+      />
     );
   }
 
   return (
-    <div className="h-full w-full bg-terminal-950 text-terminal-300 font-mono text-sm overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-terminal-500">
-          <span>▤</span>
-          <span className="text-xs uppercase tracking-wider">
-            PROJECTS MODULE
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-terminal-600 text-xs">
-            {projects?.length || 0} PROJECTS
-          </span>
-        </div>
-      </div>
+    <div className="h-full w-full bg-transparent flex flex-col p-6">
+      <div className="flex-1 border border-neutral-200 border-b-[3px] rounded-3xl bg-white flex flex-col overflow-hidden relative shadow-sm transition-all duration-150">
+        {/* Toolbar Header */}
+        <div className="h-20 min-h-[80px] border-b border-neutral-200 px-8 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-6 w-full max-w-2xl">
+            <div className="flex items-center gap-3 text-neutral-400">
+              <FolderKanban className="w-5 h-5" strokeWidth={1.5} />
+              <span className="text-[10px] tracking-[0.15em] font-mono uppercase hidden sm:inline-block">
+                Directories
+              </span>
+            </div>
+            <div className="w-px h-6 bg-neutral-200 hidden sm:block" />
 
-      {/* Terminal Content */}
-      <div
-        className="flex-1 p-6 overflow-y-auto"
-        onClick={() => inputRef.current?.focus()}
-      >
-        <div className="max-w-4xl mx-auto">
-          {/* Logs */}
-          <div className="space-y-0.5">
-            {logs.filter(Boolean).map((log) => {
-              if (log.text === "  [EMPTY STATE RENDERED]") return null;
-              return (
-                <div key={log.id} className={getLogColor(log.type)}>
-                  {log.text || "\u00A0"}
-                </div>
-              );
-            })}
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
+                strokeWidth={1.5}
+              />
+              <input
+                type="text"
+                placeholder="QUERY DIRECTORIES..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 text-[12px] font-mono text-black rounded-full outline-none focus:border-black transition-colors"
+              />
+            </div>
 
-            {projects?.length === 0 && !isBooting && !showForm && (
-              <div className="my-8">
-                <EmptyState
-                  icon={FolderKanban}
-                  title="No Projects Found"
-                  description="Initialize a new project workspace to begin tracking tasks, documents, and decisions."
-                  actionLabel="Create Project"
-                  onAction={() => setShowForm(true)}
-                />
-              </div>
-            )}
-            <div ref={logsEndRef} />
+            {/* Filter Toggle */}
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-neutral-200 hover:bg-neutral-50 hover:border-black transition-colors shrink-0">
+              <Filter className="w-4 h-4 text-neutral-500" />
+              <span className="text-[10px] tracking-[0.15em] font-mono uppercase text-neutral-600">
+                Filter
+              </span>
+            </button>
           </div>
 
-          {/* Create Project Form */}
-          {showForm && (
-            <div className="mt-4 border border-terminal-800 p-4 bg-terminal-900/30">
-              <h3 className="text-xs text-terminal-500 mb-3 uppercase">
-                New Project
-              </h3>
-              <form onSubmit={handleCreateProject} className="space-y-3">
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">
-                    NAME *
-                  </label>
-                  <input
-                    name="name"
-                    type="text"
-                    required
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none"
-                    placeholder="project-name"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">
-                    DESCRIPTION
-                  </label>
-                  <textarea
-                    name="description"
-                    rows={2}
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none resize-none"
-                    placeholder="Brief description..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-terminal-600 block mb-1">
-                    VISIBILITY
-                  </label>
-                  <select
-                    name="visibility"
-                    defaultValue="private"
-                    className="w-full bg-terminal-950 border border-terminal-700 px-3 py-1.5 text-sm focus:border-emerald-500 outline-none"
-                  >
-                    <option value="public">public</option>
-                    <option value="private">private</option>
-                    <option value="invite_only">invite_only</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="submit"
-                    disabled={isCreating}
-                    className="px-4 py-1.5 bg-emerald-600 text-terminal-950 text-xs hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    {isCreating ? "CREATING..." : "CREATE"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="px-4 py-1.5 border border-terminal-700 text-xs hover:bg-terminal-800"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+          <GlassButton
+            onClick={() => setShowForm(true)}
+            size="md"
+            className="ml-4 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-[10px] tracking-[0.15em] uppercase">
+              [ INIT DIR ]
+            </span>
+          </GlassButton>
+        </div>
 
-          {/* Command Input */}
-          {!isBooting && !showForm && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-terminal-500">sys&gt;</span>
-              <div className="relative flex-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  onKeyDown={handleCommand}
-                  className="bg-transparent border-none outline-none w-full text-terminal-100"
-                  placeholder="Type 'help' for commands..."
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <div
-                  className="absolute top-0 h-5 w-2 bg-emerald-500 pointer-events-none animate-pulse"
-                  style={{ left: `${command.length * 9.6}px` }}
-                />
+        {/* Projects Grid */}
+        <div className="flex-1 overflow-y-auto bg-transparent relative min-h-[400px]">
+          {filteredProjects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="font-mono text-neutral-200 text-[120px] leading-none mb-6">
+                #
+              </div>
+              <div className="font-header text-[32px] tracking-tighter text-black uppercase mb-2">
+                NO DIRECTORIES FOUND
+              </div>
+              <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono mt-2">
+                CREATE A NEW DIRECTORY TO PROCEED.
               </div>
             </div>
-          )}
-
-          {/* Booting indicator */}
-          {isBooting && (
-            <div className="mt-4 flex items-center gap-2 text-emerald-400 animate-pulse">
-              <span>⟳</span>
-              <span>LOADING MODULE...</span>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-b border-neutral-200">
+              {filteredProjects.map((project, index) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  index={index}
+                  onClick={() => navigate(`/p/${project.id}`)}
+                />
+              ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
-        SENTRY COLLABORATIVE OS • TYPE "help" FOR COMMANDS
+      {/* Create Project Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-md p-6">
+          <div className="w-full max-w-[500px] border border-neutral-300 border-b-[4px] bg-white shadow-2xl flex flex-col rounded-3xl overflow-hidden relative">
+            <div className="p-8 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+              <h2 className="font-header text-2xl text-black uppercase tracking-widest">
+                Initialize Directory
+              </h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="w-10 h-10 rounded-full border border-neutral-200 hover:border-[#D33E33] text-neutral-500 flex items-center justify-center hover:text-[#D33E33] transition-colors bg-white"
+              >
+                <Terminal className="w-5 h-5" strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleCreateProject}
+              className="p-8 flex flex-col gap-8 bg-transparent"
+            >
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Directory Designation *
+                </label>
+                <input
+                  name="name"
+                  type="text"
+                  required
+                  className="input-brutal w-full py-4 text-lg rounded-full"
+                  placeholder="INPUT TITLE..."
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Summary
+                </label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  className="input-brutal w-full py-4 px-6 text-lg resize-none rounded-3xl"
+                  placeholder="INPUT DESCRIPTION..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 mb-3">
+                  Visibility Status
+                </label>
+                <select
+                  name="visibility"
+                  defaultValue="private"
+                  className="input-brutal w-full py-4 px-6 text-lg appearance-none bg-white rounded-full"
+                >
+                  <option value="public">PUBLIC ACCESSIBLE</option>
+                  <option value="private">PRIVATE SECURE</option>
+                  <option value="invite_only">RESTRICTED</option>
+                </select>
+              </div>
+
+              <div className="flex gap-4 pt-6 mt-2 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 py-4 border border-neutral-300 text-[10px] tracking-[0.15em] uppercase font-mono text-neutral-500 hover:bg-neutral-100 hover:text-black transition-colors rounded-full"
+                >
+                  [ ABORT ]
+                </button>
+                <GlassButton
+                  type="submit"
+                  disabled={isCreating}
+                  size="md"
+                  className="flex-1"
+                >
+                  {isCreating ? "INITIALIZING..." : "[ COMMIT ]"}
+                </GlassButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectCard({
+  project,
+  index,
+  onClick,
+}: {
+  project: Project;
+  index: number;
+  onClick: () => void;
+}) {
+  const visibilityConfig = {
+    public: { icon: Globe, label: "Public", color: "text-info" },
+    private: { icon: Lock, label: "Private", color: "text-warning" },
+    invite_only: {
+      icon: Users,
+      label: "Invite Only",
+      color: "text-purple-400",
+    },
+  };
+
+  const config = visibilityConfig[project.visibility];
+  const Icon = config.icon;
+
+  return (
+    <div
+      onClick={onClick}
+      className="group p-8 border-b border-r border-neutral-200 hover:bg-neutral-50 cursor-pointer flex flex-col justify-between h-[320px] transition-all relative z-0 hover:z-10 hover:shadow-[4px_4px_0_0_#000] hover:-translate-y-[2px] hover:-translate-x-[2px] bg-white"
+    >
+      <div>
+        <div className="flex items-start justify-between mb-8">
+          <div className="w-12 h-12 rounded-full border border-neutral-200 bg-transparent group-hover:bg-white group-hover:border-neutral-300 flex items-center justify-center transition-colors">
+            <FolderKanban
+              className="w-5 h-5 text-neutral-500 group-hover:text-black transition-colors"
+              strokeWidth={1.5}
+            />
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="w-8 h-8 rounded-full border border-transparent hover:border-neutral-200 text-neutral-500 flex items-center justify-center hover:text-black transition-colors"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+
+        <h3 className="text-[32px] font-bold font-header tracking-tighter leading-none text-black uppercase mb-4 truncate transition-colors">
+          {project.name}
+        </h3>
+        <p className="font-sans text-[15px] tracking-wide text-neutral-500 line-clamp-3 transition-colors">
+          {project.description || "NO DESCRIPTION ATTACHED"}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between pt-6 border-t border-neutral-200 transition-colors">
+        <div className="flex items-center gap-2 font-mono text-[11px] tracking-wider uppercase">
+          <Icon
+            className={cn("w-4 h-4 transition-colors", config.color)}
+            strokeWidth={1.5}
+          />
+          <span className="text-neutral-700">{config.label}</span>
+        </div>
+        <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 font-mono transition-colors">
+          <span>
+            {formatDistanceToNow(new Date(project.createdAt), {
+              addSuffix: true,
+            })}
+          </span>
+        </div>
+      </div>
+
+      <div className="absolute right-8 top-8 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
+          <ArrowRight className="w-4 h-4 text-black" strokeWidth={1.5} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectDetail({
+  project,
+  onBack,
+}: {
+  project: Project;
+  onBack: () => void;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="h-full w-full bg-transparent flex flex-col p-6">
+      <div className="flex-1 border border-neutral-200 border-b-[3px] rounded-3xl bg-white flex flex-col overflow-hidden relative shadow-sm transition-all duration-150">
+        {/* Header */}
+        <div className="h-24 border-b border-neutral-200 flex items-center justify-between px-10 bg-transparent z-10 shrink-0">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="px-4 py-2 border border-neutral-200 rounded-full text-[10px] tracking-[0.1em] font-mono hover:bg-neutral-100 hover:text-black transition-colors"
+              >
+                [ BACK ]
+              </button>
+            </div>
+            <div className="h-8 w-px bg-neutral-200" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center bg-transparent">
+                <FolderKanban
+                  className="w-5 h-5 text-neutral-500"
+                  strokeWidth={1.5}
+                />
+              </div>
+              <span className="font-header font-bold text-[28px] tracking-tighter text-black uppercase mt-1">
+                {project.name}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase">
+              ESTABLISHED:{" "}
+              {formatDistanceToNow(new Date(project.createdAt), {
+                addSuffix: true,
+              })}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto bg-transparent">
+          <div className="p-12 border-b border-neutral-200 flex flex-col gap-6">
+            <h2 className="font-header font-bold text-[48px] tracking-tighter leading-none text-black uppercase">
+              Directory Overview
+            </h2>
+            <p className="font-sans text-[18px] tracking-wide text-neutral-500 max-w-3xl leading-relaxed">
+              {project.description || "NO DETAILS PROVIDED FOR THIS RECORD."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-neutral-200">
+            <button
+              onClick={() => navigate(`/messages?project=${project.id}`)}
+              className="flex flex-col p-12 text-left group transition-all duration-150 z-0 hover:z-10 hover:shadow-[4px_4px_0_0_#000] hover:-translate-y-[2px] hover:-translate-x-[2px] hover:bg-neutral-50 bg-white"
+            >
+              <div className="font-header font-bold text-[32px] tracking-tighter leading-none text-black mb-6 flex items-center justify-between w-full">
+                <span>COMM LOGS</span>
+                <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:bg-white bg-transparent">
+                  <ArrowRight
+                    className="w-5 h-5 text-black"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] uppercase font-mono tracking-[0.1em] text-neutral-500 mt-auto">
+                ACCESS SYSTEM CHATTER
+              </p>
+            </button>
+
+            <button
+              onClick={() => navigate(`/decisions?project=${project.id}`)}
+              className="flex flex-col p-12 text-left group transition-all duration-150 z-0 hover:z-10 hover:shadow-[4px_4px_0_0_#000] hover:-translate-y-[2px] hover:-translate-x-[2px] hover:bg-neutral-50 bg-white"
+            >
+              <div className="font-header font-bold text-[32px] tracking-tighter leading-none text-black mb-6 flex items-center justify-between w-full">
+                <span>DECISION MATRIX</span>
+                <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:bg-white bg-transparent">
+                  <ArrowRight
+                    className="w-5 h-5 text-black"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] uppercase font-mono tracking-[0.1em] text-neutral-500 mt-auto">
+                REVIEW ACTIONABLE CHOICES
+              </p>
+            </button>
+
+            <button
+              onClick={() => navigate(`/documents?project=${project.id}`)}
+              className="flex flex-col p-12 text-left group transition-all duration-150 z-0 hover:z-10 hover:shadow-[4px_4px_0_0_#000] hover:-translate-y-[2px] hover:-translate-x-[2px] hover:bg-neutral-50 bg-white"
+            >
+              <div className="font-header font-bold text-[32px] tracking-tighter leading-none text-black mb-6 flex items-center justify-between w-full">
+                <span>ARCHIVES</span>
+                <div className="w-10 h-10 border border-neutral-200 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:bg-white bg-transparent">
+                  <ArrowRight
+                    className="w-5 h-5 text-black"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] uppercase font-mono tracking-[0.1em] text-neutral-500 mt-auto">
+                ACCESS STORED RECORDS
+              </p>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

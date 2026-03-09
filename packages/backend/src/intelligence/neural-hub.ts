@@ -46,6 +46,8 @@ import {
   betaVariance,
 } from '@sentry/shared';
 
+import { semanticEngine } from './semantic-engine.js';
+
 // =============================================================================
 // ENHANCED TYPES
 // =============================================================================
@@ -272,12 +274,11 @@ export class ContextualSensor {
 
   /**
    * Compute semantic alignment with active intent
-   * Uses Jaccard similarity on tokenized text
+   * Uses TF-IDF + cosine similarity for better matching
    */
   private computeIntentAlignment(content: string, intentStatement: string): number {
-    const contentTokens = tokenize(content);
-    const intentTokens = tokenize(intentStatement);
-    return jaccardSimilarity(contentTokens, intentTokens);
+    const result = semanticEngine.computeMatch(content, intentStatement);
+    return result.similarity;
   }
 
   explain(signalName: string, value: number, ctx: ProcessingContext): string {

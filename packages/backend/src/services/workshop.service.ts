@@ -7,6 +7,7 @@ import { v4 as uuid } from 'uuid';
 import { query, withTransaction } from '../db/pool.js';
 import { emitToChat } from '../websocket/handlers.js';
 import * as chatService from './chat.service.js';
+import { semanticEngine } from '../intelligence/semantic-engine.js';
 
 // =============================================================================
 // TYPES
@@ -415,39 +416,53 @@ export async function generateWorkshopSummary(workshopId: string): Promise<Works
   const workshop = await getWorkshopById(workshopId);
   if (!workshop) return null;
 
-  // Get workshop metrics
+  const chatId = workshop.chatId;
+
   const { rows: msgStats } = await query<{ count: string }>(
     `SELECT COUNT(*) as count FROM messages WHERE chat_id = $1`,
-    [workshop.chatId]
+    [chatId]
   );
   const totalMessages = parseInt(msgStats[0]?.count || '0', 10);
 
   const participants = await getParticipants(workshopId);
   const participantCount = participants.length;
 
-  // Get decisions made during workshop
-  const { rows: decisions } = await query<{ id: string }>(
-    `SELECT id FROM decision_records
+  const { rows: decisions } = await query<{
+    id: string;
+    statement: string;
+    rationale: string | null;
+  }>(
+    `SELECT id, statement, rationale FROM decision_records
      WHERE chat_id = $1 AND created_at >= $2 AND created_at <= COALESCE($3, NOW())`,
-    [workshop.chatId, workshop.actualStart, workshop.actualEnd]
+    [chatId, workshop.actualStart, workshop.actualEnd]
   );
   const keyDecisions = decisions.map(d => d.id);
   const decisionCount = keyDecisions.length;
 
-  // Calculate duration
   const durationMinutes = workshop.actualStart && workshop.actualEnd
     ? Math.round((workshop.actualEnd.getTime() - workshop.actualStart.getTime()) / (1000 * 60))
     : 0;
 
-  // Get agenda items for summary
   const agenda = await getAgenda(workshopId);
   const completedItems = agenda.filter(a => a.status === 'completed');
 
-  // Generate executive summary
-  const executiveSummary = generateExecutiveSummary(workshop, completedItems, decisionCount);
+  const messages = await query<{ id: string; content: string; user_id: string }>(
+    `SELECT id, content, user_id FROM messages WHERE chat_id = $1 AND deleted = false ORDER BY created_at`,
+    [chatId]
+  );
+  const messageList = messages.rows;
+  const actionItems = extractActionItems(messageList);
+  const openQuestions = extractOpenQuestionsSmart(messageList);
+  const keywords = extractWorkshopKeywords(messageList, decisions);
 
-  // Extract open questions (simplified - would use NLP in production)
-  const openQuestions = await extractOpenQuestions(workshop.chatId);
+  const executiveSummary = generateExecutiveSummaryV2(
+    workshop,
+    completedItems,
+    decisions,
+    actionItems,
+    participantCount,
+    durationMinutes
+  );
 
   const id = uuid();
   const { rows } = await query<WorkshopSummary>(
@@ -475,7 +490,7 @@ export async function generateWorkshopSummary(workshopId: string): Promise<Works
       workshopId,
       executiveSummary,
       keyDecisions,
-      JSON.stringify([]), // Action items would be extracted with NLP
+      JSON.stringify(actionItems),
       openQuestions,
       totalMessages,
       participantCount,
@@ -487,42 +502,122 @@ export async function generateWorkshopSummary(workshopId: string): Promise<Works
   return rows[0];
 }
 
-function generateExecutiveSummary(
-  workshop: Workshop,
-  completedItems: AgendaItem[],
-  decisionCount: number
-): string {
-  const itemsList = completedItems.map(i => `- ${i.title}`).join('\n');
-  
-  return `
-## Workshop: ${workshop.title}
-
-**Objective:** ${workshop.objective}
-
-### Topics Covered
-${itemsList || '- No agenda items completed'}
-
-### Outcomes
-- **${decisionCount}** decisions were made
-${decisionCount > 0 ? '- All decisions have been captured and linked' : '- No formal decisions were captured'}
-
-### Next Steps
-Review the decisions and action items below for follow-up.
-`.trim();
+interface ExtractedAction {
+  description: string;
+  assignee?: string;
 }
 
-async function extractOpenQuestions(chatId: string): Promise<string[]> {
-  // Simplified: extract messages ending with '?' that weren't replied to
-  const { rows } = await query<{ content: string }>(
-    `SELECT content FROM messages
-     WHERE chat_id = $1 AND content LIKE '%?' AND deleted = false
-     ORDER BY created_at DESC LIMIT 5`,
-    [chatId]
-  );
+function extractActionItems(messages: Array<{ id: string; content: string; user_id: string }>): ExtractedAction[] {
+  const actions: ExtractedAction[] = [];
+  const seen = new Set<string>();
+  const patterns = [
+    { regex: /\b(i'?ll|I'?ll)\s+(.+?)(?:\.|!|$)/gi, hasAssignee: false },
+    { regex: /\b(we'?ll|we\s+will)\s+(.+?)(?:\.|!|$)/gi, hasAssignee: false },
+    { regex: /\b(going\sto)\s+(.+?)(?:\.|!|$)/gi, hasAssignee: false },
+    { regex: /\b(should)\s+(.+?)(?:\.|!|$)/gi, hasAssignee: false },
+    { regex: /\b(todo|to-do|action\s+item):?\s*(.+?)(?:\.|!|$)/gi, hasAssignee: false },
+  ];
 
-  return rows
-    .map(r => r.content.split('?')[0] + '?')
-    .filter(q => q.length < 200);
+  for (const msg of messages) {
+    const content = msg.content.trim();
+    for (const { regex } of patterns) {
+      const matches = content.matchAll(regex);
+      for (const match of matches) {
+        let description = (match[2] || match[1] || '').trim();
+        if (description && description.length > 3 && description.length < 150) {
+          const key = description.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            actions.push({ description: capitalizeFirst(description) });
+          }
+        }
+      }
+    }
+  }
+  return actions.slice(0, 10);
+}
+
+function extractOpenQuestionsSmart(messages: Array<{ id: string; content: string }>): string[] {
+  const questionMap = new Map<string, number>();
+  for (const msg of messages) {
+    if (msg.content.includes('?')) {
+      const question = msg.content.split('?')[0].replace(/^(who|what|where|when|why|how|should|could|would)\s+/i, '').trim();
+      if (question.length > 5 && question.length < 150) {
+        const existing = questionMap.get(question.toLowerCase()) || 0;
+        questionMap.set(question.toLowerCase(), existing + 1);
+      }
+    }
+  }
+  return [...questionMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([q]) => capitalizeFirst(q) + '?');
+}
+
+function extractWorkshopKeywords(
+  messages: Array<{ content: string }>,
+  decisions: Array<{ statement: string }>
+): string[] {
+  const allText = [...messages.map(m => m.content), ...decisions.map(d => d.statement)].join(' ');
+  const keywords = semanticEngine.extractKeywords([allText], { maxKeywords: 8 });
+  return keywords.map(k => k.term);
+}
+
+function generateExecutiveSummaryV2(
+  workshop: Workshop,
+  completedItems: AgendaItem[],
+  decisions: Array<{ id: string; statement: string; rationale: string | null }>,
+  actionItems: ExtractedAction[],
+  participantCount: number,
+  durationMinutes: number
+): string {
+  const lines: string[] = [];
+  lines.push('## Workshop Summary: ' + workshop.title);
+  lines.push('');
+  lines.push('**Objective:** ' + workshop.objective);
+  lines.push('');
+  lines.push('### Overview');
+  lines.push('- Duration: ' + durationMinutes + ' minutes');
+  lines.push('- Participants: ' + participantCount);
+  lines.push('- Decisions Made: ' + decisions.length);
+  lines.push('- Action Items: ' + actionItems.length);
+  lines.push('');
+
+  if (completedItems.length > 0) {
+    lines.push('### Agenda Completed');
+    for (const item of completedItems) {
+      const status = item.status === 'completed' ? '[DONE]' : '[PENDING]';
+      lines.push('- ' + status + ' ' + item.title);
+    }
+    lines.push('');
+  }
+
+  if (decisions.length > 0) {
+    lines.push('### Decisions');
+    for (const decision of decisions.slice(0, 5)) {
+      lines.push('- ' + decision.statement.slice(0, 80));
+    }
+    if (decisions.length > 5) {
+      lines.push('- ...and ' + (decisions.length - 5) + ' more');
+    }
+    lines.push('');
+  }
+
+  if (actionItems.length > 0) {
+    lines.push('### Action Items');
+    for (const action of actionItems.slice(0, 5)) {
+      lines.push('- ' + action.description);
+    }
+    if (actionItems.length > 5) {
+      lines.push('- ...and ' + (actionItems.length - 5) + ' more');
+    }
+    lines.push('');
+  }
+
+  lines.push('---');
+  lines.push('Generated on ' + new Date().toISOString().split('T')[0]);
+  return lines.join('\n');
+}
+
+function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export async function getWorkshopSummary(workshopId: string): Promise<WorkshopSummary | null> {

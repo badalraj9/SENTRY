@@ -1,292 +1,209 @@
-import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAppSelector } from '../../../store/hooks';
-import { Terminal, Shield, Loader2 } from 'lucide-react';
+import * as React from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useAppSelector } from "../../../store/hooks";
+import {
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  MessageSquare,
+  FileText,
+  MonitorPlay,
+  GitPullRequest,
+  Key,
+  Clock,
+  Zap,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "../../../shared/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   OPERATOR DOSSIER - TERMINAL PROFILE
-   Full CLI-style profile experience matching Login/Register aesthetic
+   User Profile Page
+   Modern glassmorphic profile with stats
    ═══════════════════════════════════════════════════════════════════════════ */
-
-interface LogEntry {
-  id: string;
-  text: string;
-  type: 'info' | 'success' | 'error' | 'warning' | 'header' | 'divider' | 'classified';
-}
 
 export default function UserProfile() {
   const { user } = useAppSelector((state) => state.auth);
-  const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const hasBooted = useRef(false);
 
-  const [command, setCommand] = useState('');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const stats = [
+    {
+      label: "Decisions",
+      value: 142,
+      icon: GitPullRequest,
+      color: "text-info",
+    },
+    { label: "Documents", value: 38, icon: FileText, color: "text-purple-400" },
+    { label: "Workshops", value: 12, icon: MonitorPlay, color: "text-warning" },
+    {
+      label: "Messages",
+      value: 1847,
+      icon: MessageSquare,
+      color: "text-success",
+    },
+  ];
 
-  // Mock stats
-  const stats = {
-    decisions: 142,
-    documents: 38,
-    workshops: 12,
-    messages: 1847,
-    uptime: '99.2%',
-    clearance: 'LEVEL 5',
-  };
-
-  // Boot sequence animation - runs only once
-  useEffect(() => {
-    if (hasBooted.current) return;
-    hasBooted.current = true;
-
-    const bootSequence: LogEntry[] = [
-      { id: '1', text: 'SENTRY_OS v4.0.2 [PERSONNEL DATABASE]', type: 'header' },
-      { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
-      { id: '3', text: 'INIT: ACCESSING PERSONNEL FILE...', type: 'info' },
-      { id: '4', text: 'AUTH: DECRYPTING BIOMETRIC DATA...', type: 'info' },
-      { id: '5', text: '✓ IDENTITY VERIFIED', type: 'success' },
-      { id: '6', text: '✓ FILE ACCESS GRANTED', type: 'success' },
-      { id: '7', text: '', type: 'info' },
-      { id: '8', text: '── OPERATOR DOSSIER ───────────────────────────────────', type: 'divider' },
-      { id: '9', text: '', type: 'info' },
-      { id: '10', text: `  HANDLE:        @${user?.handle || 'unknown'}`, type: 'info' },
-      { id: '11', text: `  DISPLAY_NAME:  ${user?.displayName || 'Commander'}`, type: 'info' },
-      { id: '12', text: `  EMAIL:         ${user?.email || 'classified@sentry.os'}`, type: 'info' },
-      { id: '13', text: `  OPERATOR_ID:   ${user?.id?.slice(0, 8) || 'UNKNOWN'}...`, type: 'info' },
-      { id: '14', text: `  CLEARANCE:     ${stats.clearance}`, type: 'success' },
-      { id: '15', text: `  STATUS:        ACTIVE`, type: 'success' },
-      { id: '16', text: '', type: 'info' },
-      { id: '17', text: '── ACTIVITY METRICS ───────────────────────────────────', type: 'divider' },
-      { id: '18', text: '', type: 'info' },
-      { id: '19', text: `  DECISIONS_MADE:     ${stats.decisions}`, type: 'info' },
-      { id: '20', text: `  DOCUMENTS_CREATED:  ${stats.documents}`, type: 'info' },
-      { id: '21', text: `  WORKSHOPS_LED:      ${stats.workshops}`, type: 'info' },
-      { id: '22', text: `  MESSAGES_SENT:      ${stats.messages}`, type: 'info' },
-      { id: '23', text: `  SESSION_UPTIME:     ${stats.uptime}`, type: 'success' },
-      { id: '24', text: '', type: 'info' },
-      { id: '25', text: '── API TOKENS ─────────────────────────────────────────', type: 'divider' },
-      { id: '26', text: '', type: 'info' },
-      { id: '27', text: '  [1] CLI_Agent_01      (active, last used: 2m ago)', type: 'success' },
-      { id: '28', text: '  [2] GitHub_Action     (active, last used: 1d ago)', type: 'success' },
-      { id: '29', text: '  [3] Webhook_Handler   (expired)', type: 'warning' },
-      { id: '30', text: '', type: 'info' },
-      { id: '31', text: '── KEYBOARD SHORTCUTS ─────────────────────────────────', type: 'divider' },
-      { id: '32', text: '', type: 'info' },
-      { id: '33', text: '  ⌘K  Quick Search       ⌘J  AI Assistant', type: 'info' },
-      { id: '34', text: '  ⌘N  New Document       ⌘B  Toggle Sidebar', type: 'info' },
-      { id: '35', text: '  ⌘P  Command Palette    ⌘\\  Toggle Theme', type: 'info' },
-      { id: '36', text: '', type: 'info' },
-      { id: '37', text: '═══════════════════════════════════════════════════════', type: 'divider' },
-      { id: '38', text: 'FILE ACCESS COMPLETE. AWAITING COMMAND.', type: 'success' },
-      { id: '39', text: '', type: 'info' },
-    ];
-
-    // Staggered boot animation using recursive setTimeout
-    let currentIndex = 0;
-    
-    const addNextLog = () => {
-      if (currentIndex < bootSequence.length) {
-        setLogs(prev => [...prev, bootSequence[currentIndex]]);
-        currentIndex++;
-        setTimeout(addNextLog, 35);
-      } else {
-        setIsLoading(false);
-        inputRef.current?.focus();
-      }
-    };
-    
-    addNextLog();
-  }, []); // Empty deps - run once
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-
-  // Handle commands
-  const handleCommand = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter' || !command.trim()) return;
-
-    const cmd = command.toLowerCase().trim();
-    setLogs(prev => [...prev, { id: Date.now().toString(), text: `cmd> ${command}`, type: 'info' }]);
-    setCommand('');
-
-    // Command routing
-    if (cmd === 'help' || cmd === '?') {
-      addLogs([
-        { text: '', type: 'info' },
-        { text: '── DOSSIER COMMANDS ───────────────────────────────────', type: 'divider' },
-        { text: '  back       → Return to command center', type: 'info' },
-        { text: '  tokens     → Manage API tokens', type: 'info' },
-        { text: '  export     → Export profile data', type: 'info' },
-        { text: '  settings   → System preferences', type: 'info' },
-        { text: '  logout     → Terminate session', type: 'info' },
-        { text: '  clear      → Clear terminal', type: 'info' },
-        { text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'back' || cmd === 'home') {
-      addLogs([{ text: '→ RETURNING TO COMMAND CENTER...', type: 'success' }]);
-      setTimeout(() => navigate('/'), 500);
-    } else if (cmd === 'tokens') {
-      addLogs([
-        { text: '', type: 'info' },
-        { text: '── TOKEN MANAGEMENT ───────────────────────────────────', type: 'divider' },
-        { text: '  Commands: tokens new | tokens revoke <id>', type: 'info' },
-        { text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'tokens new') {
-      const newToken = `sentry_${Math.random().toString(36).slice(2, 18)}`;
-      addLogs([
-        { text: '✓ NEW TOKEN GENERATED:', type: 'success' },
-        { text: `  ${newToken}`, type: 'warning' },
-        { text: '  ⚠ COPY NOW - WILL NOT BE SHOWN AGAIN', type: 'warning' },
-        { text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'export') {
-      addLogs([
-        { text: 'EXPORTING PROFILE DATA...', type: 'info' },
-        { text: '✓ EXPORT COMPLETE: profile_export.json', type: 'success' },
-        { text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'settings') {
-      addLogs([
-        { text: '', type: 'info' },
-        { text: '── SYSTEM PREFERENCES ─────────────────────────────────', type: 'divider' },
-        { text: '  THEME:          DARK', type: 'info' },
-        { text: '  NOTIFICATIONS:  ENABLED', type: 'success' },
-        { text: '  FOCUS_MODE:     DISABLED', type: 'info' },
-        { text: '  COMPACT_MODE:   DISABLED', type: 'info' },
-        { text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'clear') {
-      setLogs([
-        { id: '1', text: 'SENTRY_OS v4.0.2 [PERSONNEL DATABASE]', type: 'header' },
-        { id: '2', text: '═══════════════════════════════════════════════════════', type: 'divider' },
-        { id: '3', text: 'TERMINAL CLEARED.', type: 'success' },
-        { id: '4', text: '', type: 'info' },
-      ]);
-    } else if (cmd === 'logout' || cmd === 'exit') {
-      addLogs([
-        { text: 'TERMINATING SESSION...', type: 'warning' },
-        { text: 'GOODBYE, COMMANDER.', type: 'info' },
-      ]);
-      setTimeout(() => navigate('/login'), 1000);
-    } else {
-      addLogs([
-        { text: `ERR: UNKNOWN COMMAND "${cmd}"`, type: 'error' },
-        { text: 'TYPE "help" FOR AVAILABLE COMMANDS', type: 'info' },
-      ]);
-    }
-  };
-
-  const addLogs = (entries: Omit<LogEntry, 'id'>[]) => {
-    const newLogs = entries.map((e, i) => ({
-      ...e,
-      id: `${Date.now()}-${i}`,
-    }));
-    setLogs(prev => [...prev, ...newLogs]);
-  };
-
-  const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'success': return 'text-success';
-      case 'error': return 'text-error';
-      case 'warning': return 'text-warning';
-      case 'header': return 'text-success font-bold';
-      case 'divider': return 'text-terminal-600';
-      case 'classified': return 'text-error';
-      default: return 'text-terminal-400';
-    }
-  };
+  const tokens = [
+    { name: "CLI_Agent_01", status: "active", lastUsed: "2 minutes ago" },
+    { name: "GitHub_Action", status: "active", lastUsed: "1 day ago" },
+    { name: "Webhook_Handler", status: "expired", lastUsed: "30 days ago" },
+  ];
 
   return (
-    <div
-      className="h-full w-full bg-terminal-950 text-success font-mono text-sm overflow-hidden flex flex-col"
-      onClick={() => inputRef.current?.focus()}
-    >
-      {/* Header */}
-      <div className="p-4 border-b border-terminal-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-terminal-500">
-          <Terminal className="w-4 h-4" />
-          <span className="text-xs uppercase tracking-wider">Personnel Database</span>
-          <span className="text-terminal-700">•</span>
-          <span className="text-success text-xs">@{user?.handle || 'unknown'}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-terminal-600 text-xs">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span>CLEARANCE {stats.clearance}</span>
+    <div className="h-full w-full bg-black flex flex-col md:flex-row overflow-hidden border-t border-white/5">
+      {/* LEFT COLUMN: Identity (30%) */}
+      <div className="w-full md:w-[30%] border-r border-white/5 flex flex-col shrink-0 bg-black">
+        {/* Avatar Area */}
+        <div className="p-12 border-b border-white/5 flex flex-col items-center justify-center text-center">
+          <div className="w-32 h-32 border border-white/10 bg-white/[0.02] flex items-center justify-center text-white text-5xl font-mono mb-8">
+            {user?.handle?.[0]?.toUpperCase() ||
+              user?.displayName?.[0]?.toUpperCase() ||
+              "O"}
           </div>
-          <div className="flex items-center gap-2 text-terminal-600 text-xs">
-            <Shield className="w-3 h-3" />
-            <span>CLASSIFIED</span>
+          <h1 className="text-[32px] font-header tracking-tighter text-white uppercase mb-2 leading-none">
+            {user?.displayName || "COMMANDER"}
+          </h1>
+          <p className="text-micro mt-1">@{user?.handle || "user"}</p>
+
+          <div className="flex flex-col gap-2 mt-8 w-full">
+            <div className="border border-white/5 p-3 flex items-center justify-between text-micro bg-white/[0.01]">
+              <span className="text-neutral-500">STATUS</span>
+              <span className="text-[#00FF00]">ACTIVE</span>
+            </div>
+            <div className="border border-white/5 p-3 flex items-center justify-between text-micro bg-white/[0.01]">
+              <span className="text-neutral-500">CLEARANCE</span>
+              <span className="text-white">LEVEL 5</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Info */}
+        <div className="p-12 flex-1 bg-white/[0.01]">
+          <h3 className="text-micro mb-6">Contact Information</h3>
+          <div className="space-y-6 font-mono text-xs text-neutral-400">
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-500">Email</span>
+              <span className="text-white text-right">
+                {user?.email || "classified@sentry.os"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-neutral-500">Member Since</span>
+              <span className="text-white text-right">
+                {formatDistanceToNow(new Date(), { addSuffix: true })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-neutral-500">Operator ID</span>
+              <span className="text-white text-right">
+                {user?.id?.slice(0, 8) || "UNKNOWN"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Terminal Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
-          {/* Logs */}
-          <div className="space-y-0.5">
-            {logs.filter(Boolean).map((log) => (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.05 }}
-                className={getLogColor(log.type)}
-              >
-                {log.text || '\u00A0'}
-              </motion.div>
-            ))}
-            <div ref={logsEndRef} />
-          </div>
+      {/* RIGHT COLUMN: Data & Stats (70%) */}
+      <div className="flex-1 flex flex-col min-w-0 bg-black">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-white/5">
+          {stats.map((stat, index) => (
+            <div
+              key={stat.label}
+              className="p-8 border-r border-b lg:border-b-0 border-white/5 last:border-r-0 flex flex-col justify-center gap-2"
+            >
+              <div className="text-neutral-600 mb-4">
+                <stat.icon className="w-5 h-5" />
+              </div>
+              <div className="text-[48px] font-header text-white leading-none tracking-tighter">
+                {stat.value}
+              </div>
+              <div className="text-micro">{stat.label}</div>
+            </div>
+          ))}
+        </div>
 
-          {/* Command Input */}
-          {!isLoading && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-terminal-500">cmd&gt;</span>
-              <div className="relative flex-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  onKeyDown={handleCommand}
-                  className="bg-transparent border-none outline-none w-full text-terminal-100"
-                  placeholder=""
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {/* Blinking Cursor */}
-                <motion.div
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.7 }}
-                  className="absolute top-0 h-5 w-2 bg-success pointer-events-none"
-                  style={{ left: `${command.length * 9.6}px` }}
-                />
+        <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+          {/* API Tokens */}
+          <div className="flex-1 border-r border-white/5 flex flex-col min-w-0">
+            <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <h3 className="text-micro">API Tokens</h3>
+              <button className="text-[10px] font-mono text-white hover:text-neutral-400 transition-colors tracking-[0.1em] outline-none">
+                [+ ADD TOKEN]
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-col">
+                {tokens.map((token) => (
+                  <div
+                    key={token.name}
+                    className="flex items-center justify-between p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Key className="w-4 h-4 text-neutral-600 group-hover:text-white transition-colors" />
+                      <div className="flex flex-col gap-1">
+                        <div className="font-sans text-[15px] font-medium tracking-wide text-neutral-400 group-hover:text-white transition-colors">
+                          {token.name}
+                        </div>
+                        <div className="text-[10px] tracking-[0.1em] font-mono text-neutral-500 uppercase">
+                          LAST USED: {token.lastUsed}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] font-mono tracking-[0.1em] px-2 py-1 border rounded-sm",
+                        token.status === "active"
+                          ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/10"
+                          : "border-[#FF0000]/20 text-[#FF0000] bg-[#FF0000]/10",
+                      )}
+                    >
+                      {token.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="mt-4 flex items-center gap-2 text-success animate-pulse">
-              <Loader2 className="animate-spin w-4 h-4" />
-              <span>DECRYPTING FILE...</span>
+          {/* Keyboard Shortcuts */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="p-8 border-b border-white/5 bg-white/[0.01]">
+              <h3 className="text-micro">Keyboard Shortcuts</h3>
             </div>
-          )}
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-col">
+                {[
+                  { keys: ["^", "K"], action: "Quick Search" },
+                  { keys: ["^", "J"], action: "AI Assistant" },
+                  { keys: ["^", "N"], action: "New Document" },
+                  { keys: ["^", "P"], action: "Command Palette" },
+                  { keys: ["^", "\\"], action: "Toggle Theme" },
+                  { keys: ["^", "B"], action: "Toggle Nav" },
+                ].map((shortcut) => (
+                  <div
+                    key={shortcut.action}
+                    className="flex items-center justify-between p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
+                  >
+                    <span className="font-sans text-[15px] tracking-wide font-medium text-neutral-400 group-hover:text-white transition-colors uppercase">
+                      {shortcut.action}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {shortcut.keys.map((key, i) => (
+                        <kbd
+                          key={i}
+                          className="px-2 py-1 font-mono text-[10px] bg-white/10 text-neutral-300 rounded-sm"
+                        >
+                          {key}
+                        </kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-terminal-800 text-center text-terminal-600 text-[10px]">
-        SENTRY COLLABORATIVE OS • PERSONNEL FILE RESTRICTED
       </div>
     </div>
   );

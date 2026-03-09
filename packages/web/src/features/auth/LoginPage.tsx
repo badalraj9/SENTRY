@@ -59,39 +59,16 @@ export default function TerminalLogin() {
       setStep('VERIFYING');
 
       try {
-        // MOCK AUTH for Demo
-        // const result = await dispatch(login({ email, password }));
+        const result = await dispatch(login({ identifier: email, password }));
         
-        // Mock success
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        if (true) { // Always succeed for demo
+        if (login.fulfilled.match(result)) {
           addLog('✓ SIGNATURE VERIFIED');
           addLog('✓ CLEARANCE: LEVEL 5');
           addLog('ACCESS GRANTED. WELCOME, COMMANDER.');
           addLog('REDIRECTING TO COMMAND CENTER...');
 
-          // Manually dispatch successful login state to Redux if needed, or just redirect
-          // But since we are mocking, we might need to set user state manually or rely on a "demo mode"
-          // For now, let's just assume the user is "logged in" by the mere act of navigating
-          // Ideally we dispatch a setCredentials action here with mock user
-
-           dispatch({
-              type: 'auth/login/fulfilled',
-              payload: {
-                user: {
-                  id: 'demo-user',
-                  email: email,
-                  handle: email.split('@')[0] || 'Commander',
-                  displayName: 'Commander'
-                },
-                accessToken: 'demo-token'
-              }
-           });
-
           setTimeout(() => navigate('/'), 1000);
         } else {
-          // Unreachable in demo mode
           addLog('ERR: INVALID CREDENTIALS');
           addLog('CONNECTION TERMINATED');
           addLog('RESETTING SECURE LINK...');

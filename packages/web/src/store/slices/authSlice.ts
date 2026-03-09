@@ -34,7 +34,7 @@ const initialState: AuthState = {
 export const login = createAsyncThunk(
   "auth/login",
   async (
-    credentials: { email: string; password: string },
+    credentials: { identifier: string; password: string },
     { rejectWithValue },
   ) => {
     try {

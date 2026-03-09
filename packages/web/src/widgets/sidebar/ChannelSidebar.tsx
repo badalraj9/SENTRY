@@ -1,7 +1,17 @@
 import * as React from "react";
 import { NavLink, useParams } from "react-router-dom";
-import { Hash, Volume2, Lock, ChevronDown, Plus, Settings } from "lucide-react";
+import {
+  Hash,
+  Volume2,
+  Lock,
+  ChevronDown,
+  Plus,
+  Settings,
+  MessageSquarePlus,
+} from "lucide-react";
 import { cn } from "../../shared/lib/utils";
+import { NewChatDialog } from "./NewChatDialog";
+import { useGetChatsQuery } from "../../shared/api/apiSlice";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Channel Sidebar
@@ -21,14 +31,6 @@ interface ChannelSection {
   title: string;
   channels: Channel[];
 }
-
-// Mock data structure
-const CHANNEL_SECTIONS: ChannelSection[] = [
-  {
-    title: "Broadcasts",
-    channels: [
-      {
-        id: "announcements",
         name: "announcements",
         type: "BROADCAST",
         unreadCount: 1,
@@ -73,22 +75,25 @@ function ChannelItem({ channel, isActive }: ChannelItemProps) {
   return (
     <NavLink
       to={`/channels/${channel.id}`}
-      className={cn(
-        "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5",
-        isActive
-          ? "bg-terminal-800 text-terminal-100"
-          : "text-terminal-400 hover:bg-terminal-900 hover:text-terminal-300",
-      )}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center gap-4 px-6 py-3 font-mono text-[11px] tracking-widest uppercase transition-colors mr-4 rounded-r-full mb-1",
+          isActive
+            ? "bg-white/[0.05] text-white"
+            : "text-neutral-500 hover:text-white hover:bg-white/[0.02]",
+        )
+      }
     >
       <Icon
         size={14}
         className={cn(
-          channel.type === "BROADCAST" ? "text-warning" : "opacity-70",
+          "transition-colors",
+          channel.type === "BROADCAST" ? "text-warning" : "text-inherit",
         )}
       />
-      <span className="truncate flex-1">{channel.name}</span>
+      <span className="truncate flex-1 tracking-[0.15em]">{channel.name}</span>
       {channel.unreadCount && channel.unreadCount > 0 && (
-        <span className="ml-auto bg-success text-terminal-950 text-[10px] font-bold px-1.5 rounded-full">
+        <span className="ml-auto bg-white text-black text-[9px] px-2 py-0.5">
           {channel.unreadCount}
         </span>
       )}
@@ -112,6 +117,43 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
   const [collapsedSections, setCollapsedSections] = React.useState<Set<string>>(
     new Set(),
   );
+  const [isNewChatOpen, setIsNewChatOpen] = React.useState(false);
+
+  // Fetch real chats from API
+  const { data: chats = [], isLoading } = useGetChatsQuery(undefined);
+
+  // Group chats by type
+  const channelSections = React.useMemo(() => {
+    const sections: ChannelSection[] = [];
+    
+    const publicChats = chats.filter(c => c.visibility === "public");
+    const privateChats = chats.filter(c => c.visibility === "private");
+    const broadcastChats = chats.filter(c => c.type === "workshop");
+    
+    if (publicChats.length > 0) {
+      sections.push({
+        title: "Channels",
+        channels: publicChats.map(c => ({
+          id: c.id,
+          name: c.name || "unnamed",
+          type: "PUBLIC" as ChannelType,
+        })),
+      });
+    }
+    
+    if (privateChats.length > 0) {
+      sections.push({
+        title: "Private",
+        channels: privateChats.map(c => ({
+          id: c.id,
+          name: c.name || "unnamed",
+          type: "PRIVATE" as ChannelType,
+        })),
+      });
+    }
+    
+    return sections;
+  }, [chats]);
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) => {
@@ -131,48 +173,66 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
   };
 
   return (
-    <div className="hidden md:flex w-60 bg-terminal-950 border-r border-terminal-800 flex-col h-full shrink-0">
+    <div className="hidden md:flex w-80 bg-black border-r border-white/10 border-dashed flex-col h-full shrink-0">
       {/* Header */}
       <div
         className={cn(
-          "h-14 border-b border-terminal-800 flex items-center px-4",
-          "font-bold text-terminal-100 hover:bg-terminal-900 transition-colors cursor-pointer",
+          "h-24 border-b border-white/10 border-dashed flex items-center justify-between px-6 bg-transparent shrink-0",
+          "font-header text-[22px] tracking-tighter text-white uppercase",
         )}
       >
-        <span>Sentry HQ</span>
-        <ChevronDown size={14} className="ml-auto text-terminal-500" />
+        <div className="flex items-center gap-3">
+          <Hash className="w-5 h-5 opacity-50" />
+          <span>COMMS NODE</span>
+        </div>
+        <button
+          onClick={() => setIsNewChatOpen(true)}
+          className="w-8 h-8 rounded-full border border-transparent hover:border-white/10 border-dashed text-neutral-500 hover:text-white transition-colors flex items-center justify-center"
+          title="INITIALIZE COMM"
+        >
+          <Plus size={18} strokeWidth={1.5} />
+        </button>
       </div>
 
       {/* Channel List */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {CHANNEL_SECTIONS.map((section) => {
-          const isCollapsed = collapsedSections.has(section.title);
+      <div className="flex-1 overflow-y-auto bg-black">
+        {isLoading ? (
+          <div className="p-6 text-neutral-500 text-xs font-mono uppercase tracking-widest">
+            Loading...
+          </div>
+        ) : channelSections.length === 0 ? (
+          <div className="p-6 text-neutral-500 text-xs font-mono uppercase tracking-widest">
+            No channels yet
+          </div>
+        ) : (
+          channelSections.map((section) => {
+            const isCollapsed = collapsedSections.has(section.title);
 
-          return (
-            <div key={section.title} className="mb-4">
+            return (
+              <div
+                key={section.title}
+              className="border-b border-white/10 border-dashed pb-2"
+            >
               {/* Section Header */}
-              <div className="flex items-center justify-between px-1 mb-1.5 group">
-                <button
-                  onClick={() => toggleSection(section.title)}
-                  className="flex items-center gap-1 text-[11px] font-mono uppercase text-terminal-500 font-bold tracking-wider hover:text-terminal-400"
-                >
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="w-full flex items-center justify-between px-6 py-4 bg-transparent hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-3 text-micro text-neutral-500">
                   <ChevronDown
-                    size={10}
+                    size={14}
                     className={cn(
-                      "transition-transform",
+                      "transition-transform duration-200",
                       isCollapsed && "-rotate-90",
                     )}
                   />
                   {section.title}
-                </button>
-                <button className="text-terminal-600 hover:text-terminal-300 opacity-0 group-hover:opacity-100 transition-all">
-                  <Plus size={12} />
-                </button>
-              </div>
+                </div>
+              </button>
 
               {/* Channels */}
               {!isCollapsed && (
-                <div className="animate-fade-in">
+                <div className="bg-black">
                   {section.channels.map((channel) => (
                     <ChannelItem
                       key={channel.id}
@@ -190,33 +250,39 @@ export function ChannelSidebar({ currentUser }: ChannelSidebarProps) {
       {/* User Bar */}
       <div
         className={cn(
-          "h-14 bg-terminal-900/50 border-t border-terminal-800",
-          "flex items-center px-3 gap-3",
+          "border-t border-white/10 border-dashed bg-transparent",
+          "flex items-center p-6 gap-4",
         )}
       >
-        <div className="w-8 h-8 rounded bg-success flex items-center justify-center font-bold text-xs text-terminal-950">
+        <div className="w-12 h-12 rounded-full border border-white/10 border-dashed bg-white/[0.02] flex items-center justify-center font-header text-[20px] text-white">
           {user.handle.slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 overflow-hidden">
-          <div className="text-xs font-medium text-terminal-100 truncate">
+          <div className="font-header text-[18px] tracking-wide text-white uppercase truncate">
             {user.handle}
           </div>
-          <div className="text-[10px] text-terminal-500 flex items-center gap-1">
+          <div className="text-[10px] tracking-[0.1em] text-neutral-500 uppercase flex items-center gap-2 mt-1">
             <div
               className={cn(
                 "w-1.5 h-1.5 rounded-full",
-                user.status === "online" && "bg-success",
+                user.status === "online" &&
+                  "bg-[#D33E33] animate-pulse shadow-[0_0_8px_#D33E33]",
                 user.status === "away" && "bg-warning",
-                user.status === "offline" && "bg-terminal-600",
+                user.status === "offline" && "bg-neutral-600",
               )}
             />
-            <span className="capitalize">{user.status}</span>
+            <span>{user.status}</span>
           </div>
         </div>
-        <button className="p-1.5 text-terminal-500 hover:text-terminal-300 transition-colors">
-          <Settings size={14} />
+        <button className="w-8 h-8 rounded-full border border-transparent hover:border-white/10 border-dashed text-neutral-500 hover:text-white transition-colors flex items-center justify-center">
+          <Settings size={18} strokeWidth={1.5} />
         </button>
       </div>
+
+      <NewChatDialog
+        isOpen={isNewChatOpen}
+        onClose={() => setIsNewChatOpen(false)}
+      />
     </div>
   );
 }
